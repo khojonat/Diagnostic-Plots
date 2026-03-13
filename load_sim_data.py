@@ -1,6 +1,10 @@
+import os
+
 import h5py 
 import numpy as np
 import sys
+
+import astropy.units as u
 
 torreylabtools_path = '/sfs/gpfs/tardis/home/yja6qa/FIRE_MW_suite/torreylabtools'
 illustris_python_path = '~/illustris_python_te'
@@ -160,5 +164,163 @@ def identify_target_halo(path,redshift,mass_range = [np.log10(5e11),np.log10(2.5
         i += 1
 
     return target
-    
-    
+
+
+def split_paired_array(arr, first_is_x: bool = True):
+    """
+    Generic helper to unpack an interleaved 1D array of the form
+    [x0, y0, x1, y1, ...] or [y0, x0, y1, x1, ...].
+
+    Parameters
+    ----------
+    arr : array_like
+        Flat array with an even number of elements, storing paired values.
+    first_is_x : bool, optional
+        If True, interpret as [x0, y0, x1, y1, ...] and return (x, y).
+        If False, interpret as [y0, x0, y1, x1, ...] and return (x, y).
+
+    Returns
+    -------
+    x, y : np.ndarray
+        Arrays of the same length containing the unpacked x and y values.
+    """
+    arr = np.asarray(arr)
+    if arr.size % 2 != 0:
+        raise ValueError("split_paired_array expects an array with an even number of elements.")
+
+    first = arr[0::2]
+    second = arr[1::2]
+
+    if first_is_x:
+        return first, second
+    return second, first
+
+
+def compute_rotation_curve_and_save(
+    sim_path: str,
+    snapnum: int,
+    box_num: int,
+    output_dir: str = "sim_data",
+) -> str:
+    """
+    Load gas, dark matter, and stellar particles for a given snapshot,
+    compute cumulative mass profiles and rotation curves, and store the
+    compiled data in an HDF5 file for later use (e.g. Tully–Fisher plots).
+
+    The output file is saved as sim_data/Box_<box_num>_rot.hdf5 by default.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    snapfile = os.path.join(sim_path, f"snap_{snapnum:03d}.hdf5")
+    with h5py.File(snapfile, "r") as f:
+        header = f["Header"]
+        boxsize = header.attrs["BoxSize"]
+        h = header.attrs["HubbleParam"]
+        UnitLength = header.attrs["UnitLength_In_CGS"] * u.cm
+        UnitMass = header.attrs["UnitMass_In_CGS"] * u.g
+        UnitVelocity = header.attrs["UnitVelocity_In_CGS"] * u.cm / u.s
+
+        gas_mass = np.array(
+            f["PartType0"]["Masses"][:] * UnitMass.to(u.M_sun).value
+        )
+        gas_pos = np.array(
+            f["PartType0"]["Coordinates"][:] * UnitLength.to(u.kpc).value
+        )
+
+        dm_mass = np.array(
+            f["PartType1"]["Masses"][:] * UnitMass.to(u.M_sun).value
+        )
+        dm_pos = np.array(
+            f["PartType1"]["Coordinates"][:] * UnitLength.to(u.kpc).value
+        )
+
+        dm2_mass = np.array(
+            f["PartType2"]["Masses"][:] * UnitMass.to(u.M_sun).value
+        )
+        dm2_pos = np.array(
+            f["PartType2"]["Coordinates"][:] * UnitLength.to(u.kpc).value
+        )
+
+        star_mass = np.array(
+            f["PartType4"]["Masses"][:] * UnitMass.to(u.M_sun).value
+        )
+        star_pos = np.array(
+            f["PartType4"]["Coordinates"][:] * UnitLength.to(u.kpc).value
+        )
+
+    # Default centers as in the original script (only box 3 used here)
+    center_box3 = (51532, 56850, 51738)
+    center = center_box3
+
+    def center_and_box_wrap(pos, mass, center_vec, boxsize_val):
+        pos = np.array(pos, copy=True)
+        for ijk in range(3):
+            pos[:, ijk] -= center_vec[ijk]
+            pos[pos[:, ijk] > 1.0 * boxsize_val / 2.0, ijk] -= boxsize_val
+            pos[pos[:, ijk] < -1.0 * boxsize_val / 2.0, ijk] += boxsize_val
+
+        rad = np.sqrt(pos[:, 0] ** 2 + pos[:, 1] ** 2 + pos[:, 2] ** 2)
+        return rad, mass
+
+    gas_rad, gas_mass = center_and_box_wrap(gas_pos, gas_mass, center, boxsize)
+    dm_rad, dm_mass = center_and_box_wrap(dm_pos, dm_mass, center, boxsize)
+    dm2_rad, dm2_mass = center_and_box_wrap(dm2_pos, dm2_mass, center, boxsize)
+    star_rad, star_mass = center_and_box_wrap(star_pos, star_mass, center, boxsize)
+
+    dr = 0.05
+    rmax = 50.0
+    rs = np.arange(dr, rmax + dr, dr)
+    cum_mass = np.zeros(len(rs))
+    cum_mass_dm_only = np.zeros(len(rs))
+    cum_mass_gas_only = np.zeros(len(rs))
+    cum_mass_stars_only = np.zeros(len(rs))
+
+    for index, r in enumerate(rs):
+        gas_within_dr = gas_rad <= r
+        dm_within_dr = dm_rad <= r
+        dm2_within_dr = dm2_rad <= r
+        star_within_dr = star_rad <= r
+
+        cum_mass[index] = np.sum(
+            [
+                np.sum(gas_mass[gas_within_dr]),
+                np.sum(dm_mass[dm_within_dr]),
+                np.sum(dm2_mass[dm2_within_dr]),
+                np.sum(star_mass[star_within_dr]),
+            ]
+        )
+
+        cum_mass_gas_only[index] = np.sum(gas_mass[gas_within_dr])
+        cum_mass_dm_only[index] = np.sum(
+            [np.sum(dm_mass[dm_within_dr]), np.sum(dm2_mass[dm2_within_dr])]
+        )
+        cum_mass_stars_only[index] = np.sum(star_mass[star_within_dr])
+
+    # Physical constants and unit conversions
+    G = 6.67e-11  # m^3 kg / s^2
+    rs_m = rs * 3.086e19  # kpc -> m
+    cum_mass_kg = cum_mass * 2e30
+    cum_mass_dm_only_kg = cum_mass_dm_only * 2e30
+    cum_mass_gas_only_kg = cum_mass_gas_only * 2e30
+    cum_mass_stars_only_kg = cum_mass_stars_only * 2e30
+
+    vrot = np.sqrt(G * cum_mass_kg / rs_m) / 1000.0
+    vrot_dm_only = np.sqrt(G * cum_mass_dm_only_kg / rs_m) / 1000.0
+    vrot_gas_only = np.sqrt(G * cum_mass_gas_only_kg / rs_m) / 1000.0
+    vrot_stars_only = np.sqrt(G * cum_mass_stars_only_kg / rs_m) / 1000.0
+
+    # Store original rs in kpc for plotting convenience
+    outpath = os.path.join(output_dir, f"Box_{box_num}_rot.hdf5")
+    with h5py.File(outpath, "w") as f_out:
+        f_out.create_dataset("rs", data=rs)
+        f_out.create_dataset("cum_mass", data=cum_mass)
+        f_out.create_dataset("cum_mass_dm_only", data=cum_mass_dm_only)
+        f_out.create_dataset("cum_mass_gas_only", data=cum_mass_gas_only)
+        f_out.create_dataset("cum_mass_stars_only", data=cum_mass_stars_only)
+        f_out.create_dataset("vrot", data=vrot)
+        f_out.create_dataset("vrot_dm_only", data=vrot_dm_only)
+        f_out.create_dataset("vrot_gas_only", data=vrot_gas_only)
+        f_out.create_dataset("vrot_stars_only", data=vrot_stars_only)
+
+    return outpath
+
