@@ -7,7 +7,7 @@ import sys
 import astropy.units as u
 
 torreylabtools_path = '/sfs/gpfs/tardis/home/yja6qa/FIRE_MW_suite/torreylabtools'
-illustris_python_path = '~/illustris_python_te'
+illustris_python_path = os.path.expanduser('~/')
 sys.path.insert(0, str(torreylabtools_path)) # Adding torreylabtools to our path
 sys.path.insert(0, str(illustris_python_path)) # Adding illustris_python to our path
 
@@ -157,7 +157,7 @@ def identify_target_halo(path,redshift,mass_range = [np.log10(5e11),np.log10(2.5
     
         # If they're all contaminated, just take the least contaminated halo in the mass range
         if i == len(valid) - 1:
-            print(f'Box {box_num}: All valid halos are contaminated')
+            print(f'Run {box_num}: All valid halos are contaminated')
             target = valid[np.argin(all_contam)]
             break
             
@@ -310,7 +310,7 @@ def compute_rotation_curve_and_save(
     vrot_stars_only = np.sqrt(G * cum_mass_stars_only_kg / rs_m) / 1000.0
 
     # Store original rs in kpc for plotting convenience
-    outpath = os.path.join(output_dir, f"Box_{box_num}_rot.hdf5")
+    outpath = os.path.join(output_dir, f"run_{box_num}_rot.hdf5")
     with h5py.File(outpath, "w") as f_out:
         f_out.create_dataset("rs", data=rs)
         f_out.create_dataset("cum_mass", data=cum_mass)
