@@ -6,13 +6,10 @@ import sys
 
 import astropy.units as u
 
-torreylabtools_path = '/sfs/gpfs/tardis/home/yja6qa/FIRE_MW_suite/torreylabtools'
 illustris_python_path = os.path.expanduser('~/')
-sys.path.insert(0, str(torreylabtools_path)) # Adding torreylabtools to our path
 sys.path.insert(0, str(illustris_python_path)) # Adding illustris_python to our path
 
 import illustris_python_te as il
-from torreylabtools import *
 
 
 def parttype_map(parttype):

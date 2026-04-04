@@ -93,6 +93,7 @@ def plot_sfr_history(
 
     ax.set_xlabel("Redshift")
     ax.set_ylabel("Total SFR")
+    ax.set_yscale('log')
     title = "Star Formation History"
     if box_num is not None:
         title += f" (box {box_num})"
