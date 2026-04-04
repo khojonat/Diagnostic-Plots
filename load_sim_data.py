@@ -7,7 +7,7 @@ import sys
 import astropy.units as u
 
 torreylabtools_path = '/sfs/gpfs/tardis/home/yja6qa/FIRE_MW_suite/torreylabtools'
-illustris_python_path = '~/illustris_python_te'
+illustris_python_path = os.path.expanduser('~/')
 sys.path.insert(0, str(torreylabtools_path)) # Adding torreylabtools to our path
 sys.path.insert(0, str(illustris_python_path)) # Adding illustris_python to our path
 
@@ -157,7 +157,7 @@ def identify_target_halo(path,redshift,mass_range = [np.log10(5e11),np.log10(2.5
     
         # If they're all contaminated, just take the least contaminated halo in the mass range
         if i == len(valid) - 1:
-            print(f'Box {box_num}: All valid halos are contaminated')
+            print(f'Run {box_num}: All valid halos are contaminated')
             target = valid[np.argin(all_contam)]
             break
             
