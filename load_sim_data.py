@@ -170,6 +170,7 @@ def split_paired_array(arr, first_is_x: bool = True):
     """
     Generic helper to unpack an interleaved 1D array of the form
     [x0, y0, x1, y1, ...] or [y0, x0, y1, x1, ...].
+    This is used to unpack data points from other plots.
 
     Parameters
     ----------
@@ -206,8 +207,9 @@ def compute_rotation_curve_and_save(
     Load gas, dark matter, and stellar particles for a given snapshot,
     compute cumulative mass profiles and rotation curves, and store the
     compiled data in an HDF5 file for later use (e.g. Tully–Fisher plots).
+    Code originally from Alex Garcia. Adapted for this project.
 
-    The output file is saved as sim_data/Box_<box_num>_rot.hdf5 by default.
+    The output file is saved as sim_data/Run_<box_num>_rot.hdf5 by default.
     """
     os.makedirs(output_dir, exist_ok=True)
 
@@ -310,7 +312,7 @@ def compute_rotation_curve_and_save(
     vrot_stars_only = np.sqrt(G * cum_mass_stars_only_kg / rs_m) / 1000.0
 
     # Store original rs in kpc for plotting convenience
-    outpath = os.path.join(output_dir, f"Box_{box_num}_rot.hdf5")
+    outpath = os.path.join(output_dir, f"Run_{box_num}_rot.hdf5")
     with h5py.File(outpath, "w") as f_out:
         f_out.create_dataset("rs", data=rs)
         f_out.create_dataset("cum_mass", data=cum_mass)

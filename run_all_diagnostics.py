@@ -75,15 +75,15 @@ def run_all_diagnostics(sim_path: str, snapnum: int, box_num: int | None = None)
         )
 
     results["dm_density_map"] = _component_density(
-        "dm", f"DM density (box {box_num})", f"FIRE2_MW_box{box_num}_dm_density.png"
+        "dm", f"DM density (box {box_num})", f"FIRE2_MW_run{box_num}_dm_density.png"
     )
     results["gas_density_map"] = _component_density(
-        "gas", f"Gas density (box {box_num})", f"FIRE2_MW_box{box_num}_gas_density.png"
+        "gas", f"Gas density (box {box_num})", f"FIRE2_MW_run{box_num}_gas_density.png"
     )
     results["stellar_density_map"] = _component_density(
         "stars",
         f"Stellar density (box {box_num})",
-        f"FIRE2_MW_box{box_num}_stellar_density.png",
+        f"FIRE2_MW_run{box_num}_stellar_density.png",
     )
 
     # Star formation history up to the current snapshot

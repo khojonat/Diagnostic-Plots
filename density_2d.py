@@ -46,7 +46,7 @@ def plot_2d_hist(
     if x.shape != y.shape:
         raise ValueError("x and y must have the same shape for a 2D histogram.")
 
-    H, xedges, yedges = np.histogram2d(x, y, bins=nbins)
+    H, xedges, yedges = np.histogram2d(x, y, bins=(nbins,nbins))
 
     fig, ax = plt.subplots(figsize=(6, 6))
 

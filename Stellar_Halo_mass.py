@@ -161,7 +161,7 @@ def plot_stellar_halo_mass(sim_path: str,
     ax.legend()
 
     os.makedirs(output_dir, exist_ok=True)
-    tag = f"Box_{box_num}_" if box_num is not None else ""
+    tag = f"Run_{box_num}_" if box_num is not None else ""
     outname = os.path.join(output_dir, f"{tag}Halo_Stellar_mass_alt.png")
     fig.savefig(outname, bbox_inches="tight")
     plt.close(fig)

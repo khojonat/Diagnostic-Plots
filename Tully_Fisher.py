@@ -98,7 +98,7 @@ def plot_tully_fisher(
     fig2.tight_layout()
 
     os.makedirs(output_dir, exist_ok=True)
-    outname = os.path.join(output_dir, f"FIRE2_MW_box{box_num}_TF.png")
+    outname = os.path.join(output_dir, f"FIRE2_MW_run{box_num}_TF.png")
     fig2.savefig(outname, bbox_inches="tight")
     plt.close(fig2)
 

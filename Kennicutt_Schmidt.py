@@ -170,7 +170,7 @@ def plot_kennicutt_schmidt(
     fig.tight_layout()
 
     os.makedirs(output_dir, exist_ok=True)
-    tag = f"_box{box_num}" if box_num is not None else ""
+    tag = f"_run{box_num}" if box_num is not None else ""
     outname = os.path.join(output_dir, f"Kennicutt_Schmidt{tag}.png")
     fig.savefig(outname, bbox_inches="tight")
     plt.close(fig)

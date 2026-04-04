@@ -1,5 +1,4 @@
 import os
-
 import h5py
 import matplotlib
 
@@ -15,6 +14,7 @@ def plot_rotation_curve(
 ) -> str:
     """
     Make a rotation-curve plot from precomputed data stored in an HDF5 file.
+    Code originally from Alex Garcia. 
 
     Parameters
     ----------
@@ -76,7 +76,7 @@ def plot_rotation_curve(
     fig.subplots_adjust(hspace=0.0)
 
     os.makedirs(output_dir, exist_ok=True)
-    outname = os.path.join(output_dir, f"FIRE2_MW_box{box_num}_rotation_curve2.png")
+    outname = os.path.join(output_dir, f"FIRE2_MW_run{box_num}_rotation_curve2.png")
     fig.savefig(outname, bbox_inches="tight")
     plt.close(fig)
 
