@@ -1,0 +1,15 @@
+Loading snapshot 90
+Snapshot redshift: 2.220446049250313e-16
+Loading snapshot 90
+Snapshot redshift: 2.220446049250313e-16
+Total stellar mass: 1.042e+11 Msun
+Total halo (DM) mass: 1.264e+12 Msun
+stellar_halo_mass_plot: Plots/Run_3_Halo_Stellar_mass_alt.png
+rotation_curve_data: sim_data/Run_3_rot.hdf5
+rotation_curve_plot: Plots/FIRE2_MW_run3_rotation_curve2.png
+tully_fisher_plot: Plots/FIRE2_MW_run3_TF.png
+dm_density_map: Plots/FIRE2_MW_run3_dm_density.png
+gas_density_map: Plots/FIRE2_MW_run3_gas_density.png
+stellar_density_map: Plots/FIRE2_MW_run3_stellar_density.png
+sfr_history_plot: Plots/SFR_history_run3.png
+kenn_icutt_schmidt_plot: Plots/Kennicutt_Schmidt_run3.png

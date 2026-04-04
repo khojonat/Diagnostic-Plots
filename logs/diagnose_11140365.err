@@ -1,0 +1,2 @@
+/sfs/gpfs/tardis/home/yja6qa/Diagnostic-Plots/Tully_Fisher.py:90: RuntimeWarning: divide by zero encountered in log10
+  axs2.scatter(np.log10(M_stars_total), V_rot_med, label=f"FIRE box {box_num}")
