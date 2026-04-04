@@ -1,5 +1,9 @@
 import argparse
 import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from Stellar_Halo_mass import plot_stellar_halo_mass
 from Tully_Fisher import plot_tully_fisher
