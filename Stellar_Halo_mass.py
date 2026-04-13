@@ -4,7 +4,7 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 
-from load_sim_data import load_particles, split_paired_array, identify_target_halo
+from load_sim_data import load_particles, split_paired_array, identify_target_halo, loadHalos
 
 
 # Literature comparison data (kept as provided)

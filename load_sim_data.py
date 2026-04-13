@@ -124,7 +124,7 @@ def identify_target_halo(box_num,snapnum):
     min_mass = Mtarget - 0.1 * 2 # Doubling tolerance to try to catch valid halo
     max_mass = Mtarget + 0.1 * 2
     
-    path = fof_sub_base + f'run_{box_num}/'
+    path = snapshot_base + f'run_{box_num}/'
     with h5py.File(path+f"/snap_{snapnum:03}.hdf5", "r") as f:
 
         Header = f['Header']
@@ -219,39 +219,39 @@ def compute_rotation_curve_and_save(
         header = f["Header"]
         boxsize = header.attrs["BoxSize"]
         h = header.attrs["HubbleParam"]
-        UnitLength = header.attrs["UnitLength_In_CGS"] * u.cm
-        UnitMass = header.attrs["UnitMass_In_CGS"] * u.g
-        UnitVelocity = header.attrs["UnitVelocity_In_CGS"] * u.cm / u.s
+        UnitLength = u.kpc # header.attrs["UnitLength_In_CGS"] * u.cm
+        UnitMass = 1e10 * u.Msun # header.attrs["UnitMass_In_CGS"] * u.g
+        # UnitVelocity = # header.attrs["UnitVelocity_In_CGS"] * u.cm / u.s
 
-        boxsize_kpc = boxsize * UnitLength.to(u.kpc).value
+        boxsize_kpc = boxsize * UnitLength.to(u.kpc)
 
         # Load all particles
         gas_mass_all = np.array(
-            f["PartType0"]["Masses"][:] * UnitMass.to(u.M_sun).value
+            f["PartType0"]["Masses"][:] * UnitMass.to(u.M_sun)
         )
         gas_pos_all = np.array(
-            f["PartType0"]["Coordinates"][:] * UnitLength.to(u.kpc).value
+            f["PartType0"]["Coordinates"][:] * UnitLength.to(u.kpc)
         )
 
         dm_mass_all = np.array(
-            f["PartType1"]["Masses"][:] * UnitMass.to(u.M_sun).value
+            f["PartType1"]["Masses"][:] * UnitMass.to(u.M_sun)
         )
         dm_pos_all = np.array(
-            f["PartType1"]["Coordinates"][:] * UnitLength.to(u.kpc).value
+            f["PartType1"]["Coordinates"][:] * UnitLength.to(u.kpc)
         )
 
         dm2_mass_all = np.array(
-            f["PartType2"]["Masses"][:] * UnitMass.to(u.M_sun).value
+            f["PartType2"]["Masses"][:] * UnitMass.to(u.M_sun)
         )
         dm2_pos_all = np.array(
-            f["PartType2"]["Coordinates"][:] * UnitLength.to(u.kpc).value
+            f["PartType2"]["Coordinates"][:] * UnitLength.to(u.kpc)
         )
 
         star_mass_all = np.array(
-            f["PartType4"]["Masses"][:] * UnitMass.to(u.M_sun).value
+            f["PartType4"]["Masses"][:] * UnitMass.to(u.M_sun)
         )
         star_pos_all = np.array(
-            f["PartType4"]["Coordinates"][:] * UnitLength.to(u.kpc).value
+            f["PartType4"]["Coordinates"][:] * UnitLength.to(u.kpc)
         )
 
     # Slice to halo particles
@@ -275,7 +275,7 @@ def compute_rotation_curve_and_save(
     star_mass = star_mass_all[start_star:end_star]
     star_pos = star_pos_all[start_star:end_star]
 
-    center = halo_pos * UnitLength.to(u.kpc).value  # assuming halo_pos is in code units
+    center = halo_pos * UnitLength.to(u.kpc)  # assuming halo_pos is in code units
 
     def center_and_box_wrap(pos, mass, center_vec, boxsize_val):
         pos = np.array(pos, copy=True)
@@ -368,11 +368,11 @@ def compute_rotation_curve_and_save(
 # authors and should not be interpreted as representing official policies, 
 # either expressed or implied, of the FreeBSD Project.
 
-def gcPath(basePath, snapNum, chunkNum=0):
+def gcPath(basePath, snapNum):
     """ Return absolute path to a group catalog HDF5 file (modify as needed). """
 
-    filePath1 = basePath + 'groups_%03d.%d.hdf5' % (snapNum, chunkNum)
-    filePath2 = basePath + 'fof_subhalo_tab_%03d.%d.hdf5' % (snapNum, chunkNum)
+    filePath1 = basePath + 'groups_%03d.hdf5' % (snapNum)
+    filePath2 = basePath + 'fof_subhalo_tab_%03d.hdf5' % (snapNum)
 
     if isfile(filePath1):
         return filePath1
@@ -422,7 +422,7 @@ def loadObjects(basePath, snapNum, gName, nName, fields):
     wOffset = 0
 
     for i in range(header['NumFiles']):
-        f = h5py.File(gcPath(basePath, snapNum, i), 'r')
+        f = h5py.File(gcPath(basePath, snapNum), 'r')
 
         if not f['Header'].attrs['N'+nName+'_ThisFile']:
             continue  # empty file chunk
