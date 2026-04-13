@@ -68,9 +68,8 @@ def _compute_annular_surface_densities(
 
 
 def plot_kennicutt_schmidt(
-    sim_path: str,
+    box_num: int,
     snapnum: int,
-    box_num: int | None = None,
     r_max: float | None = None,
     n_annuli: int = 20,
     output_dir: str = "Plots",
@@ -84,12 +83,10 @@ def plot_kennicutt_schmidt(
 
     Parameters
     ----------
-    sim_path : str
-        Path to the simulation snapshot directory.
+    box_num : int
+        Box identifier for labeling and filenames.
     snapnum : int
         Snapshot number to analyze.
-    box_num : int, optional
-        Box identifier for labeling and filenames.
     r_max : float, optional
         Maximum radius in kpc to consider. If None, set from the data.
     n_annuli : int, optional
@@ -103,11 +100,11 @@ def plot_kennicutt_schmidt(
         Path to the saved Kennicutt–Schmidt plot.
     """
     # Identify target halo
-    target = identify_target_halo(sim_path, box_num, snapnum)
+    target = identify_target_halo(box_num, snapnum)
     
     # Load gas properties: mass, positions, and instantaneous SFR
     data = load_particles(
-        sim_path,
+        box_num,
         "gas",
         fields=["Masses", "Coordinates", "StarFormationRate"],
         snapnum=snapnum,
@@ -121,7 +118,7 @@ def plot_kennicutt_schmidt(
         )
 
     # Get halo particle indices
-    halo_length = loadHalos(sim_path, snapnum, 'GroupLenType')
+    halo_length = loadHalos(box_num, snapnum, 'GroupLenType')
     start = np.sum(halo_length[:target, 0])
     end = start + halo_length[target, 0]
     
@@ -130,7 +127,7 @@ def plot_kennicutt_schmidt(
     sfr = np.asarray(data["StarFormationRate"])[start:end]
 
     # Center on the halo center
-    halo_pos = loadHalos(sim_path, snapnum, 'GroupPos')[target]
+    halo_pos = loadHalos(box_num, snapnum, 'GroupPos')[target]
     coords_centered = coords - halo_pos
     x = coords_centered[:, 0]
     y = coords_centered[:, 1]

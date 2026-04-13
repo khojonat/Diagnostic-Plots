@@ -10,19 +10,21 @@ import numpy as np
 from load_sim_data import identify_target_halo, loadHalos
 
 
-def _find_snapshot_file(sim_path: str, snapnum: int) -> str | None:
+def _find_snapshot_file(box_num: int, snapnum: int) -> str | None:
     """
     Locate a snapshot file for a given snapshot number, trying both
     snapdir_XXX/snap_XXX.hdf5 and snap_XXX.hdf5 in sim_path.
     Returns None if no file is found.
     """
-    snapdir = os.path.join(sim_path, f"snapdir_{snapnum:03d}")
+    from load_sim_data import snapshot_base
+    path = snapshot_base + f'run_{box_num}/'
+    snapdir = os.path.join(path, f"snapdir_{snapnum:03d}")
     if os.path.isdir(snapdir):
         snapfile = os.path.join(snapdir, f"snap_{snapnum:03d}.hdf5")
         if os.path.exists(snapfile):
             return snapfile
 
-    snapfile = os.path.join(sim_path, f"snap_{snapnum:03d}.hdf5")
+    snapfile = os.path.join(path, f"snap_{snapnum:03d}.hdf5")
     if os.path.exists(snapfile):
         return snapfile
 
@@ -30,9 +32,8 @@ def _find_snapshot_file(sim_path: str, snapnum: int) -> str | None:
 
 
 def plot_sfr_history(
-    sim_path: str,
+    box_num: int,
     max_snapnum: int,
-    box_num: int | None = None,
     output_dir: str = "Plots",
 ) -> str:
     """
@@ -46,12 +47,10 @@ def plot_sfr_history(
 
     Parameters
     ----------
-    sim_path : str
-        Path to the simulation snapshot directory.
+    box_num : int
+        Box identifier for labeling and filenames.
     max_snapnum : int
         Highest snapshot number to consider (0..max_snapnum will be scanned).
-    box_num : int, optional
-        Box identifier for labeling and filenames.
     output_dir : str, optional
         Directory where the SFR history plot PNG will be saved.
 
@@ -64,7 +63,7 @@ def plot_sfr_history(
     sfr_values = []
 
     for snap in range(max_snapnum + 1):
-        snapfile = _find_snapshot_file(sim_path, snap)
+        snapfile = _find_snapshot_file(box_num, snap)
         if snapfile is None:
             continue
 
@@ -75,8 +74,8 @@ def plot_sfr_history(
                 continue
 
             # Identify target halo at this snap
-            target = identify_target_halo(sim_path, box_num, snap)
-            halo_length = loadHalos(sim_path, snap, 'GroupLenType')
+            target = identify_target_halo(box_num, snap)
+            halo_length = loadHalos(box_num, snap, 'GroupLenType')
             start = np.sum(halo_length[:target, 0])
             end = start + halo_length[target, 0]
             

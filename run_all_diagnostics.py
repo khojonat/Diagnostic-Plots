@@ -14,7 +14,7 @@ from Kennicutt_Schmidt import plot_kennicutt_schmidt
 from load_sim_data import compute_rotation_curve_and_save, load_particles
 
 
-def run_all_diagnostics(sim_path: str, snapnum: int, box_num: int | None = None):
+def run_all_diagnostics(box_num: int, snapnum: int):
     """
     Run all diagnostic plots for a given snapshot.
     Currently includes:
@@ -24,18 +24,13 @@ def run_all_diagnostics(sim_path: str, snapnum: int, box_num: int | None = None)
     results = {}
 
     results["stellar_halo_mass_plot"] = plot_stellar_halo_mass(
-        sim_path=sim_path,
-        snapnum=snapnum,
         box_num=box_num,
+        snapnum=snapnum,
     )
 
-    if box_num is None:
-        raise ValueError("box_num must be provided for Tully–Fisher diagnostics.")
-
     rot_curve_file = compute_rotation_curve_and_save(
-        sim_path=sim_path,
-        snapnum=snapnum,
         box_num=box_num,
+        snapnum=snapnum,
     )
     results["rotation_curve_data"] = rot_curve_file
 
@@ -56,7 +51,6 @@ def run_all_diagnostics(sim_path: str, snapnum: int, box_num: int | None = None)
 
         output_path = os.path.join("Plots", filename)
         return plot_2d_hist(
-            sim_path=sim_path,
             box_num=box_num,
             snapnum=snapnum,
             parttype={"dm": 1, "gas": 0, "stars": 4}[parttype_str],
@@ -81,16 +75,14 @@ def run_all_diagnostics(sim_path: str, snapnum: int, box_num: int | None = None)
 
     # Star formation history up to the current snapshot
     results["sfr_history_plot"] = plot_sfr_history(
-        sim_path=sim_path,
-        max_snapnum=snapnum,
         box_num=box_num,
+        max_snapnum=snapnum,
     )
 
     # Kennicutt–Schmidt relation for the current snapshot
     results["kennicutt_schmidt_plot"] = plot_kennicutt_schmidt(
-        sim_path=sim_path,
-        snapnum=snapnum,
         box_num=box_num,
+        snapnum=snapnum,
     )
 
     return results
@@ -100,23 +92,16 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run all diagnostic plots for a given simulation snapshot."
     )
-    parser.add_argument("sim_path", help="Path to the simulation snapshot directory.")
+    parser.add_argument("box_num", type=int, help="Box number for the simulation.")
     parser.add_argument("snapnum", type=int, help="Snapshot number to analyze.")
-    parser.add_argument(
-        "--box-num",
-        type=int,
-        default=None,
-        help="Box identifier used for labeling and filenames.",
-    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = _parse_args()
     results = run_all_diagnostics(
-        sim_path=args.sim_path,
-        snapnum=args.snapnum,
         box_num=args.box_num,
+        snapnum=args.snapnum,
     )
 
     # Print a short summary of generated outputs

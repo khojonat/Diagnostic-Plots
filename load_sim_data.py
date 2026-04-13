@@ -8,6 +8,9 @@ from read_sobol import read_sobol
 import astropy.units as u
 import six
 
+#--- Standard base directories for FOF/sub and snapshot data ---# 
+fof_sub_base = '/standard/DREAMS/FOF_Subfind/CDM/varied_mass/FIRE2_SB9/'
+snapshot_base = '/standard/DREAMS/Sims/CDM/varied_mass/FIRE2_SB9/'
 
 def parttype_map(parttype):
     ''' Convert string parttypes to integers '''
@@ -46,12 +49,13 @@ def find_snapshot_from_redshift(path, target_z):
     return snapnums[np.argmin(np.abs(redshifts - target_z))]
     
 
-def load_particles(path, parttype, fields, redshift=None,
+def load_particles(box_num, parttype, fields, redshift=None,
                    snapnum=None, verbose=True):
     """
     Load particle fields from AREPO or GIZMO snapshots
     using raw HDF5 access.
     """
+    path = snapshot_base + f'run_{box_num}/'
 
     if isinstance(parttype, str):
         try:
@@ -110,7 +114,7 @@ def load_particles(path, parttype, fields, redshift=None,
     return data
 
 
-def identify_target_halo(path,box_num,snapnum):
+def identify_target_halo(box_num,snapnum):
     ''' Identifies a target halo of a given mass '''
     
     sobol = read_sobol(box_num)
@@ -120,12 +124,13 @@ def identify_target_halo(path,box_num,snapnum):
     min_mass = Mtarget - 0.1 * 2 # Doubling tolerance to try to catch valid halo
     max_mass = Mtarget + 0.1 * 2
     
+    path = fof_sub_base + f'run_{box_num}/'
     with h5py.File(path+f"/snap_{snapnum:03}.hdf5", "r") as f:
 
         Header = f['Header']
         h = Header.attrs['HubbleParam']
     
-    halo_masses = loadHalos(path,snap,'GroupMassType') * 1e10 / h
+    halo_masses = loadHalos(box_num,snapnum,'GroupMassType') * 1e10 / h
 
     DM1_masses  = halo_masses[:,1]
     DM2_masses  = halo_masses[:,2]
@@ -189,9 +194,8 @@ def split_paired_array(arr, first_is_x: bool = True):
 
 
 def compute_rotation_curve_and_save(
-    sim_path: str,
-    snapnum: int,
     box_num: int,
+    snapnum: int,
     output_dir: str = "sim_data",
 ) -> str:
     """
@@ -205,11 +209,12 @@ def compute_rotation_curve_and_save(
     os.makedirs(output_dir, exist_ok=True)
 
     # Identify target halo
-    target = identify_target_halo(sim_path, box_num, snapnum)
-    halo_length = loadHalos(sim_path, snapnum, 'GroupLenType')
-    halo_pos = loadHalos(sim_path, snapnum, 'GroupPos')[target]
+    target = identify_target_halo(box_num, snapnum)
+    halo_length = loadHalos(box_num, snapnum, 'GroupLenType')
+    halo_pos = loadHalos(box_num, snapnum, 'GroupPos')[target]
 
-    snapfile = os.path.join(sim_path, f"snap_{snapnum:03d}.hdf5")
+    snap_path = snapshot_base + f'run_{box_num}/'
+    snapfile = os.path.join(snap_path, f"snap_{snapnum:03d}.hdf5")
     with h5py.File(snapfile, "r") as f:
         header = f["Header"]
         boxsize = header.attrs["BoxSize"]
@@ -373,10 +378,10 @@ def gcPath(basePath, snapNum, chunkNum=0):
         return filePath1
     return filePath2
 
-def loadHalos(basePath, snapNum, fields=None):
+def loadHalos(box_num, snapNum, fields=None):
     """ Load all halo information from the entire group catalog for one snapshot
        (optionally restrict to a subset given by fields). """
-
+    basePath = fof_sub_base + f'run_{box_num}/'
     return loadObjects(basePath, snapNum, "Group", "groups", fields)
 
 def loadObjects(basePath, snapNum, gName, nName, fields):

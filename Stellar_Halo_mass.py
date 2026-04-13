@@ -60,18 +60,18 @@ def _find_snapshot_file(path: str, snapnum: int) -> str:
     return snapfile
 
 
-def _get_hubble_param(path: str, snapnum: int) -> float:
+def _get_hubble_param(box_num: int, snapnum: int) -> float:
     """
     Read HubbleParam from the snapshot header.
     """
-    snapfile = _find_snapshot_file(path, snapnum)
+    from load_sim_data import snapshot_base
+    snapfile = snapshot_base + f'run_{box_num}/snap_{snapnum:03d}.hdf5'
     with h5py.File(snapfile, "r") as f:
         return float(f["Header"].attrs["HubbleParam"])
 
 
-def _compute_total_masses(sim_path: str,
+def _compute_total_masses(box_num: int,
                           snapnum: int = None,
-                          box_num: int = None,
                           verbose: bool = True):
     """
     Use load_particles to get stellar and dark matter masses and
@@ -79,22 +79,20 @@ def _compute_total_masses(sim_path: str,
     """
     if snapnum is None:
         raise ValueError("snapnum must be provided")
-    if box_num is None:
-        raise ValueError("box_num must be provided")
 
     # Identify target halo
-    target = identify_target_halo(sim_path, box_num, snapnum)
-    halo_length = il.groupcat.loadHalos(sim_path, snapnum, 'GroupLenType')
+    target = identify_target_halo(box_num, snapnum)
+    halo_length = loadHalos(box_num, snapnum, 'GroupLenType')
 
     # Load particle masses in code units (1e10 Msun / h for AREPO/Illustris)
-    star_data = load_particles(sim_path, "stars", ["Masses"],
+    star_data = load_particles(box_num, "stars", ["Masses"],
                                snapnum=snapnum,
                                verbose=verbose)
-    dm_data = load_particles(sim_path, "dm", ["Masses"],
+    dm_data = load_particles(box_num, "dm", ["Masses"],
                              snapnum=snapnum,
                              verbose=verbose)
 
-    h = _get_hubble_param(sim_path, snapnum)
+    h = _get_hubble_param(box_num, snapnum)
 
     # Slice to halo particles
     start_star = np.sum(halo_length[:target, 4])
@@ -112,9 +110,8 @@ def _compute_total_masses(sim_path: str,
     return np.sum(star_masses), np.sum(dm_masses)
 
 
-def plot_stellar_halo_mass(sim_path: str,
+def plot_stellar_halo_mass(box_num: int,
                            snapnum: int,
-                           box_num: int | None = None,
                            output_dir: str = "Plots",
                            verbose: bool = True):
     """
@@ -123,19 +120,17 @@ def plot_stellar_halo_mass(sim_path: str,
 
     Parameters
     ----------
-    sim_path : str
-        Path to the simulation snapshot directory (as used by load_sim_data.py).
+    box_num : int
+        Box identifier for labeling and output filename.
     snapnum : int
         Snapshot number to load.
-    box_num : int, optional
-        Box identifier for labeling and output filename.
     output_dir : str, optional
         Directory where the plot PNG will be written.
     verbose : bool, optional
         If True, prints a short message with the computed masses.
     """
     total_stellar, total_dm = _compute_total_masses(
-        sim_path, snapnum=snapnum, box_num=box_num, verbose=verbose
+        box_num, snapnum=snapnum, verbose=verbose
     )
 
     if verbose:

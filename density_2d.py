@@ -8,7 +8,6 @@ import numpy as np
 from load_sim_data import load_particles, identify_target_halo, loadHalos
 
 def plot_2d_hist(
-    sim_path,
     box_num,
     snapnum,
     parttype,
@@ -24,8 +23,6 @@ def plot_2d_hist(
 
     Parameters
     ----------
-    sim_path: str
-        Path to the simulation data.
     box_num: int
         Box number for the simulation.
     snapnum: int
@@ -50,11 +47,11 @@ def plot_2d_hist(
     """
     
     # Identifying target particles: 
-    target = identify_target_halo(sim_path, box_num, snapnum)
-    Positions = load_particles(sim_path, parttype, ['Coordinates'], snapnum=snapnum)
-    Masses = load_particles(sim_path, parttype, ['Masses'], snapnum=snapnum)
+    target = identify_target_halo(box_num, snapnum)
+    Positions = load_particles(box_num, parttype, ['Coordinates'], snapnum=snapnum)
+    Masses = load_particles(box_num, parttype, ['Masses'], snapnum=snapnum)
 
-    halo_length = loadHalos(sim_path,snapnum,'GroupLenType')
+    halo_length = loadHalos(box_num,snapnum,'GroupLenType')
 
     # Using halo lengths to index DM particles
     Particle_positions = Positions[np.sum(halo_length[:target,1]):np.sum(halo_length[:target,1]) + halo_length[target,1]]
