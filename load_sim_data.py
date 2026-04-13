@@ -1,3 +1,4 @@
+from os.path import isfile
 import os
 
 import h5py 
@@ -5,11 +6,7 @@ import numpy as np
 import sys
 from read_sobol import read_sobol
 import astropy.units as u
-
-illustris_python_path = os.path.expanduser('~/')
-sys.path.insert(0, str(illustris_python_path)) # Adding illustris_python to our path
-
-import illustris_python_te as il
+import six
 
 
 def parttype_map(parttype):
@@ -128,7 +125,7 @@ def identify_target_halo(path,box_num,snapnum):
         Header = f['Header']
         h = Header.attrs['HubbleParam']
     
-    halo_masses = il.groupcat.loadHalos(path,snapnum,'GroupMassType') * 1e10 / h
+    halo_masses = loadHalos(path,snap,'GroupMassType') * 1e10 / h
 
     DM1_masses  = halo_masses[:,1]
     DM2_masses  = halo_masses[:,2]
@@ -209,8 +206,8 @@ def compute_rotation_curve_and_save(
 
     # Identify target halo
     target = identify_target_halo(sim_path, box_num, snapnum)
-    halo_length = il.groupcat.loadHalos(sim_path, snapnum, 'GroupLenType')
-    halo_pos = il.groupcat.loadHalos(sim_path, snapnum, 'GroupPos')[target]
+    halo_length = loadHalos(sim_path, snapnum, 'GroupLenType')
+    halo_pos = loadHalos(sim_path, snapnum, 'GroupPos')[target]
 
     snapfile = os.path.join(sim_path, f"snap_{snapnum:03d}.hdf5")
     with h5py.File(snapfile, "r") as f:
@@ -346,4 +343,105 @@ def compute_rotation_curve_and_save(
         f_out.create_dataset("vrot_stars_only", data=vrot_stars_only)
 
     return outpath
+
+
+# ---- Code below adapted from illustris python (https://github.com/illustristng/illustris_python): ---- # 
+# Copyright (c) 2017, illustris & illustris_python developers All rights reserved.
+
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, 
+# THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE 
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; 
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON 
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# The views and conclusions contained in the software and documentation are those of the 
+# authors and should not be interpreted as representing official policies, 
+# either expressed or implied, of the FreeBSD Project.
+
+def gcPath(basePath, snapNum, chunkNum=0):
+    """ Return absolute path to a group catalog HDF5 file (modify as needed). """
+
+    filePath1 = basePath + 'groups_%03d.%d.hdf5' % (snapNum, chunkNum)
+    filePath2 = basePath + 'fof_subhalo_tab_%03d.%d.hdf5' % (snapNum, chunkNum)
+
+    if isfile(filePath1):
+        return filePath1
+    return filePath2
+
+def loadHalos(basePath, snapNum, fields=None):
+    """ Load all halo information from the entire group catalog for one snapshot
+       (optionally restrict to a subset given by fields). """
+
+    return loadObjects(basePath, snapNum, "Group", "groups", fields)
+
+def loadObjects(basePath, snapNum, gName, nName, fields):
+    """ Load either halo or subhalo information from the group catalog. """
+    result = {}
+
+    # make sure fields is not a single element
+    if isinstance(fields, six.string_types):
+        fields = [fields]
+
+    # load header from first chunk
+    with h5py.File(gcPath(basePath, snapNum), 'r') as f:
+
+        header = dict(f['Header'].attrs.items())
+        result['count'] = f['Header'].attrs['N' + nName + '_Total']
+
+        if not result['count']:
+            print('warning: zero groups, empty return (snap=' + str(snapNum) + ').')
+            return result
+
+        # if fields not specified, load everything
+        if not fields:
+            fields = list(f[gName].keys())
+
+        for field in fields:
+            # verify existence
+            if field not in f[gName].keys():
+                raise Exception("Group catalog does not have requested field [" + field + "]!")
+
+            # replace local length with global
+            shape = list(f[gName][field].shape)
+            shape[0] = result['count']
+
+            # allocate within return dict
+            result[field] = np.zeros(shape, dtype=f[gName][field].dtype)
+
+    # loop over chunks
+    wOffset = 0
+
+    for i in range(header['NumFiles']):
+        f = h5py.File(gcPath(basePath, snapNum, i), 'r')
+
+        if not f['Header'].attrs['N'+nName+'_ThisFile']:
+            continue  # empty file chunk
+
+        # loop over each requested field
+        for field in fields:
+            if field not in f[gName].keys():
+                raise Exception("Group catalog does not have requested field [" + field + "]!")
+
+            # shape and type
+            shape = f[gName][field].shape
+
+            # read data local to the current file
+            if len(shape) == 1:
+                result[field][wOffset:wOffset+shape[0]] = f[gName][field][0:shape[0]]
+            else:
+                result[field][wOffset:wOffset+shape[0], :] = f[gName][field][0:shape[0], :]
+
+        wOffset += shape[0]
+        f.close()
+
+    # only a single field? then return the array instead of a single item dict
+    if len(fields) == 1:
+        return result[fields[0]]
+
+    return result
 

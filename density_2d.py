@@ -5,7 +5,7 @@ import matplotlib
 matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from load_sim_data import load_particles, identify_target_halo
+from load_sim_data import load_particles, identify_target_halo, loadHalos
 
 def plot_2d_hist(
     sim_path,
@@ -54,7 +54,7 @@ def plot_2d_hist(
     Positions = load_particles(sim_path, parttype, ['Coordinates'], snapnum=snapnum)
     Masses = load_particles(sim_path, parttype, ['Masses'], snapnum=snapnum)
 
-    halo_length = il.groupcat.loadHalos(sim_path,snapnum,'GroupLenType')
+    halo_length = loadHalos(sim_path,snapnum,'GroupLenType')
 
     # Using halo lengths to index DM particles
     Particle_positions = Positions[np.sum(halo_length[:target,1]):np.sum(halo_length[:target,1]) + halo_length[target,1]]

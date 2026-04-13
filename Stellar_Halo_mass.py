@@ -4,7 +4,7 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 
-from load_sim_data import load_particles, split_paired_array
+from load_sim_data import load_particles, split_paired_array, loadHalos
 
 
 # Literature comparison data (kept as provided)
@@ -84,7 +84,7 @@ def _compute_total_masses(sim_path: str,
 
     # Identify target halo
     target = identify_target_halo(sim_path, box_num, snapnum)
-    halo_length = il.groupcat.loadHalos(sim_path, snapnum, 'GroupLenType')
+    halo_length = loadHalos(sim_path, snapnum, 'GroupLenType')
 
     # Load particle masses in code units (1e10 Msun / h for AREPO/Illustris)
     star_data = load_particles(sim_path, "stars", ["Masses"],

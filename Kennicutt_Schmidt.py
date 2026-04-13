@@ -6,8 +6,7 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from load_sim_data import load_particles, identify_target_halo
-import illustris_python_te as il
+from load_sim_data import load_particles, identify_target_halo, loadHalos
 
 
 def _compute_annular_surface_densities(
@@ -122,7 +121,7 @@ def plot_kennicutt_schmidt(
         )
 
     # Get halo particle indices
-    halo_length = il.groupcat.loadHalos(sim_path, snapnum, 'GroupLenType')
+    halo_length = loadHalos(sim_path, snapnum, 'GroupLenType')
     start = np.sum(halo_length[:target, 0])
     end = start + halo_length[target, 0]
     
@@ -131,7 +130,7 @@ def plot_kennicutt_schmidt(
     sfr = np.asarray(data["StarFormationRate"])[start:end]
 
     # Center on the halo center
-    halo_pos = il.groupcat.loadHalos(sim_path, snapnum, 'GroupPos')[target]
+    halo_pos = loadHalos(sim_path, snapnum, 'GroupPos')[target]
     coords_centered = coords - halo_pos
     x = coords_centered[:, 0]
     y = coords_centered[:, 1]
