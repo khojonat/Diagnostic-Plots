@@ -70,6 +70,7 @@ def _compute_annular_surface_densities(
 def plot_kennicutt_schmidt(
     box_num: int,
     snapnum: int,
+    target: int,
     r_max: float | None = None,
     n_annuli: int = 20,
     output_dir: str = "Plots",
@@ -87,6 +88,8 @@ def plot_kennicutt_schmidt(
         Box identifier for labeling and filenames.
     snapnum : int
         Snapshot number to analyze.
+    target : int
+        Target halo index.
     r_max : float, optional
         Maximum radius in kpc to consider. If None, set from the data.
     n_annuli : int, optional
@@ -100,7 +103,7 @@ def plot_kennicutt_schmidt(
         Path to the saved Kennicutt–Schmidt plot.
     """
     # Identify target halo
-    target = identify_target_halo(box_num, snapnum)
+    # target = identify_target_halo(box_num, snapnum)
     
     # Load gas properties: mass, positions, and instantaneous SFR
     data = load_particles(

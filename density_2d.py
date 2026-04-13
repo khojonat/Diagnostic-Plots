@@ -11,6 +11,7 @@ def plot_2d_hist(
     box_num,
     snapnum,
     parttype,
+    target: int,
     nbins: int = 512,
     output_path: str | None = None,
     xlabel: str = "x",
@@ -29,6 +30,8 @@ def plot_2d_hist(
         Snapshot number for the simulation.
     parttype: int
         Particle type to make image of
+    target: int
+        Target halo index.
     nbins : int, optional
         Number of bins along each axis (default: 512).
     output_path : str, optional
@@ -47,7 +50,6 @@ def plot_2d_hist(
     """
     
     # Identifying target particles: 
-    target = identify_target_halo(box_num, snapnum)
     Positions = load_particles(box_num, parttype, ['Coordinates'], snapnum=snapnum)
     Masses = load_particles(box_num, parttype, ['Masses'], snapnum=snapnum)
 

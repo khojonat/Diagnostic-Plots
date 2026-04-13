@@ -34,6 +34,7 @@ def _find_snapshot_file(box_num: int, snapnum: int) -> str | None:
 def plot_sfr_history(
     box_num: int,
     max_snapnum: int,
+    target: int,
     output_dir: str = "Plots",
 ) -> str:
     """
@@ -51,6 +52,8 @@ def plot_sfr_history(
         Box identifier for labeling and filenames.
     max_snapnum : int
         Highest snapshot number to consider (0..max_snapnum will be scanned).
+    target : int
+        Target halo index.
     output_dir : str, optional
         Directory where the SFR history plot PNG will be saved.
 
@@ -74,7 +77,7 @@ def plot_sfr_history(
                 continue
 
             # Identify target halo at this snap
-            target = identify_target_halo(box_num, snap)
+            # target = identify_target_halo(box_num, snap)
             halo_length = loadHalos(box_num, snap, 'GroupLenType')
             start = np.sum(halo_length[:target, 0])
             end = start + halo_length[target, 0]

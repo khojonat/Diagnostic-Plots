@@ -72,6 +72,7 @@ def _get_hubble_param(box_num: int, snapnum: int) -> float:
 
 def _compute_total_masses(box_num: int,
                           snapnum: int = None,
+                          target: int = None,
                           verbose: bool = True):
     """
     Use load_particles to get stellar and dark matter masses and
@@ -79,9 +80,11 @@ def _compute_total_masses(box_num: int,
     """
     if snapnum is None:
         raise ValueError("snapnum must be provided")
+    if target is None:
+        raise ValueError("target must be provided")
 
     # Identify target halo
-    target = identify_target_halo(box_num, snapnum)
+    # target = identify_target_halo(box_num, snapnum)
     halo_length = loadHalos(box_num, snapnum, 'GroupLenType')
 
     # Load particle masses in code units (1e10 Msun / h for AREPO/Illustris)
@@ -112,6 +115,7 @@ def _compute_total_masses(box_num: int,
 
 def plot_stellar_halo_mass(box_num: int,
                            snapnum: int,
+                           target: int,
                            output_dir: str = "Plots",
                            verbose: bool = True):
     """
@@ -124,13 +128,15 @@ def plot_stellar_halo_mass(box_num: int,
         Box identifier for labeling and output filename.
     snapnum : int
         Snapshot number to load.
+    target : int
+        Target halo index.
     output_dir : str, optional
         Directory where the plot PNG will be written.
     verbose : bool, optional
         If True, prints a short message with the computed masses.
     """
     total_stellar, total_dm = _compute_total_masses(
-        box_num, snapnum=snapnum, verbose=verbose
+        box_num, snapnum=snapnum, target=target, verbose=verbose
     )
 
     if verbose:

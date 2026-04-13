@@ -21,16 +21,23 @@ def run_all_diagnostics(box_num: int, snapnum: int):
       - Stellar–halo mass relation.
       - Tully–Fisher relation (via precomputed rotation-curve data).
     """
+    from load_sim_data import identify_target_halo
+    
+    # Identify target halo once
+    target = identify_target_halo(box_num, snapnum)
+    
     results = {}
 
     results["stellar_halo_mass_plot"] = plot_stellar_halo_mass(
         box_num=box_num,
         snapnum=snapnum,
+        target=target,
     )
 
     rot_curve_file = compute_rotation_curve_and_save(
         box_num=box_num,
         snapnum=snapnum,
+        target=target,
     )
     results["rotation_curve_data"] = rot_curve_file
 
@@ -54,7 +61,7 @@ def run_all_diagnostics(box_num: int, snapnum: int):
             box_num=box_num,
             snapnum=snapnum,
             parttype={"dm": 1, "gas": 0, "stars": 4}[parttype_str],
-            nbins=512,
+            target=target,
             output_path=output_path,
             xlabel="x (code units)",
             ylabel="y (code units)",
@@ -77,12 +84,14 @@ def run_all_diagnostics(box_num: int, snapnum: int):
     results["sfr_history_plot"] = plot_sfr_history(
         box_num=box_num,
         max_snapnum=snapnum,
+        target=target,
     )
 
     # Kennicutt–Schmidt relation for the current snapshot
     results["kennicutt_schmidt_plot"] = plot_kennicutt_schmidt(
         box_num=box_num,
         snapnum=snapnum,
+        target=target,
     )
 
     return results

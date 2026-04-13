@@ -196,6 +196,7 @@ def split_paired_array(arr, first_is_x: bool = True):
 def compute_rotation_curve_and_save(
     box_num: int,
     snapnum: int,
+    target: int,
     output_dir: str = "sim_data",
 ) -> str:
     """
@@ -209,7 +210,7 @@ def compute_rotation_curve_and_save(
     os.makedirs(output_dir, exist_ok=True)
 
     # Identify target halo
-    target = identify_target_halo(box_num, snapnum)
+    # target = identify_target_halo(box_num, snapnum)
     halo_length = loadHalos(box_num, snapnum, 'GroupLenType')
     halo_pos = loadHalos(box_num, snapnum, 'GroupPos')[target]
 
