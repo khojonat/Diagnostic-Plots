@@ -5,11 +5,13 @@ import matplotlib
 matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import numpy as np
-
+from load_sim_data import load_particles, identify_target_halo
 
 def plot_2d_hist(
-    x: np.ndarray,
-    y: np.ndarray,
+    sim_path,
+    box_num,
+    snapnum,
+    parttype,
     nbins: int = 512,
     output_path: str | None = None,
     xlabel: str = "x",
@@ -22,8 +24,14 @@ def plot_2d_hist(
 
     Parameters
     ----------
-    x, y : array_like
-        Arrays of the same length containing the coordinates to histogram.
+    sim_path: str
+        Path to the simulation data.
+    box_num: int
+        Box number for the simulation.
+    snapnum: int
+        Snapshot number for the simulation.
+    parttype: int
+        Particle type to make image of
     nbins : int, optional
         Number of bins along each axis (default: 512).
     output_path : str, optional
@@ -40,13 +48,19 @@ def plot_2d_hist(
     str
         Path to the saved image file.
     """
-    x = np.asarray(x)
-    y = np.asarray(y)
+    
+    # Identifying target particles: 
+    target = identify_target_halo(sim_path, box_num, snapnum)
+    Positions = load_particles(sim_path, parttype, ['Coordinates'], snapnum=snapnum)
+    Masses = load_particles(sim_path, parttype, ['Masses'], snapnum=snapnum)
 
-    if x.shape != y.shape:
-        raise ValueError("x and y must have the same shape for a 2D histogram.")
+    halo_length = il.groupcat.loadHalos(sim_path,snapnum,'GroupLenType')
 
-    H, xedges, yedges = np.histogram2d(x, y, bins=(nbins,nbins))
+    # Using halo lengths to index DM particles
+    Particle_positions = Positions[np.sum(halo_length[:target,1]):np.sum(halo_length[:target,1]) + halo_length[target,1]]
+    Particle_Masses = Masses[np.sum(halo_length[:target,1]):np.sum(halo_length[:target,1]) + halo_length[target,1]]
+
+    H, xedges, yedges = np.histogram2d(Particle_positions[:,0], Particle_positions[:,1], bins=(nbins,nbins), weights=Particle_Masses)
 
     fig, ax = plt.subplots(figsize=(6, 6))
 
@@ -72,7 +86,7 @@ def plot_2d_hist(
 
     if output_path is None:
         os.makedirs("Plots", exist_ok=True)
-        output_path = os.path.join("Plots", "density_2d.png")
+        output_path = os.path.join("Plots", f"PartType{parttype}_density_2d.png")
     else:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
 

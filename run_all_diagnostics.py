@@ -53,24 +53,13 @@ def run_all_diagnostics(sim_path: str, snapnum: int, box_num: int | None = None)
     os.makedirs("Plots", exist_ok=True)
 
     def _component_density(parttype_str: str, label: str, filename: str):
-        data = load_particles(
-            sim_path,
-            parttype_str,
-            fields=["Coordinates"],
-            snapnum=snapnum,
-            redshift=None,
-            verbose=False,
-        )
-        coords = data["Coordinates"]
-        # Center on the mean to focus on the main structure
-        coords = coords - coords.mean(axis=0)
-        x = coords[:, 0]
-        y = coords[:, 1]
 
         output_path = os.path.join("Plots", filename)
         return plot_2d_hist(
-            x,
-            y,
+            sim_path=sim_path,
+            box_num=box_num,
+            snapnum=snapnum,
+            parttype={"dm": 1, "gas": 0, "stars": 4}[parttype_str],
             nbins=512,
             output_path=output_path,
             xlabel="x (code units)",
@@ -79,14 +68,14 @@ def run_all_diagnostics(sim_path: str, snapnum: int, box_num: int | None = None)
         )
 
     results["dm_density_map"] = _component_density(
-        "dm", f"DM density (box {box_num})", f"FIRE2_MW_run{box_num}_dm_density.png"
+        "dm", f"DM density (run {box_num})", f"FIRE2_MW_run{box_num}_dm_density.png"
     )
     results["gas_density_map"] = _component_density(
-        "gas", f"Gas density (box {box_num})", f"FIRE2_MW_run{box_num}_gas_density.png"
+        "gas", f"Gas density (run {box_num})", f"FIRE2_MW_run{box_num}_gas_density.png"
     )
     results["stellar_density_map"] = _component_density(
         "stars",
-        f"Stellar density (box {box_num})",
+        f"Stellar density (run {box_num})",
         f"FIRE2_MW_run{box_num}_stellar_density.png",
     )
 
@@ -98,7 +87,7 @@ def run_all_diagnostics(sim_path: str, snapnum: int, box_num: int | None = None)
     )
 
     # Kennicutt–Schmidt relation for the current snapshot
-    results["kenn_icutt_schmidt_plot"] = plot_kennicutt_schmidt(
+    results["kennicutt_schmidt_plot"] = plot_kennicutt_schmidt(
         sim_path=sim_path,
         snapnum=snapnum,
         box_num=box_num,

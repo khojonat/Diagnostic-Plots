@@ -6,7 +6,8 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from load_sim_data import load_particles
+from load_sim_data import load_particles, identify_target_halo
+import illustris_python_te as il
 
 
 def _compute_annular_surface_densities(
@@ -102,6 +103,9 @@ def plot_kennicutt_schmidt(
     str
         Path to the saved Kennicutt–Schmidt plot.
     """
+    # Identify target halo
+    target = identify_target_halo(sim_path, box_num, snapnum)
+    
     # Load gas properties: mass, positions, and instantaneous SFR
     data = load_particles(
         sim_path,
@@ -117,12 +121,18 @@ def plot_kennicutt_schmidt(
             "Gas StarFormationRate field not found; cannot compute Kennicutt–Schmidt law."
         )
 
-    masses = np.asarray(data["Masses"])
-    coords = np.asarray(data["Coordinates"])
-    sfr = np.asarray(data["StarFormationRate"])
+    # Get halo particle indices
+    halo_length = il.groupcat.loadHalos(sim_path, snapnum, 'GroupLenType')
+    start = np.sum(halo_length[:target, 0])
+    end = start + halo_length[target, 0]
+    
+    masses = np.asarray(data["Masses"])[start:end]
+    coords = np.asarray(data["Coordinates"])[start:end]
+    sfr = np.asarray(data["StarFormationRate"])[start:end]
 
-    # Center on the gas center of mass to approximate the galaxy center
-    coords_centered = coords - coords.mean(axis=0)
+    # Center on the halo center
+    halo_pos = il.groupcat.loadHalos(sim_path, snapnum, 'GroupPos')[target]
+    coords_centered = coords - halo_pos
     x = coords_centered[:, 0]
     y = coords_centered[:, 1]
 

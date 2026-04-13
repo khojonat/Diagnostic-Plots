@@ -3,7 +3,7 @@ import os
 import h5py 
 import numpy as np
 import sys
-
+from read_sobol import read_sobol
 import astropy.units as u
 
 illustris_python_path = os.path.expanduser('~/')
@@ -113,26 +113,23 @@ def load_particles(path, parttype, fields, redshift=None,
     return data
 
 
-def identify_target_halo(path,redshift,mass_range = [np.log10(5e11),np.log10(2.5e12)]):
+def identify_target_halo(path,box_num,snapnum):
     ''' Identifies a target halo of a given mass '''
     
-    min_mass = mass_range[0]
-    max_mass = mass_range[1]
+    sobol = read_sobol(box_num)
+    Mtarget = sobol[0]
+
+    # --- Select halos in desired mass range ---
+    min_mass = Mtarget - 0.1 * 2 # Doubling tolerance to try to catch valid halo
+    max_mass = Mtarget + 0.1 * 2
     
-    snap = find_snapshot_from_redshift(path,redshift)
-    
-    halo_masses = il.groupcat.loadHalos(path,snap,'GroupMassType') * 1e10 / h
-    halo_pos = il.groupcat.loadHalos(path,snap,'GroupPos') / h
-    halo_cm = il.groupcat.loadHalos(path,snap,'GroupCM') / h
-    halo_rvir = il.groupcat.loadHalos(path,snap,'Group_R_Crit200') / h
-    
-    with h5py.File(path+f"/snap_{snap:03}.hdf5", "r") as f:
+    with h5py.File(path+f"/snap_{snapnum:03}.hdf5", "r") as f:
 
         Header = f['Header']
         h = Header.attrs['HubbleParam']
-        UnitLength = Header.attrs['UnitLength_in_cm'] * u.cm
-        DMPos = np.array(f['PartType1']['Coordinates'][:] * UnitLength.to(u.kpc)) / h
     
+    halo_masses = il.groupcat.loadHalos(path,snapnum,'GroupMassType') * 1e10 / h
+
     DM1_masses  = halo_masses[:,1]
     DM2_masses  = halo_masses[:,2]
     
@@ -155,7 +152,7 @@ def identify_target_halo(path,redshift,mass_range = [np.log10(5e11),np.log10(2.5
         # If they're all contaminated, just take the least contaminated halo in the mass range
         if i == len(valid) - 1:
             print(f'Run {box_num}: All valid halos are contaminated')
-            target = valid[np.argin(all_contam)]
+            target = valid[np.argmin(all_contam)]
             break
             
         i += 1
@@ -210,6 +207,11 @@ def compute_rotation_curve_and_save(
     """
     os.makedirs(output_dir, exist_ok=True)
 
+    # Identify target halo
+    target = identify_target_halo(sim_path, box_num, snapnum)
+    halo_length = il.groupcat.loadHalos(sim_path, snapnum, 'GroupLenType')
+    halo_pos = il.groupcat.loadHalos(sim_path, snapnum, 'GroupPos')[target]
+
     snapfile = os.path.join(sim_path, f"snap_{snapnum:03d}.hdf5")
     with h5py.File(snapfile, "r") as f:
         header = f["Header"]
@@ -219,37 +221,59 @@ def compute_rotation_curve_and_save(
         UnitMass = header.attrs["UnitMass_In_CGS"] * u.g
         UnitVelocity = header.attrs["UnitVelocity_In_CGS"] * u.cm / u.s
 
-        gas_mass = np.array(
+        boxsize_kpc = boxsize * UnitLength.to(u.kpc).value
+
+        # Load all particles
+        gas_mass_all = np.array(
             f["PartType0"]["Masses"][:] * UnitMass.to(u.M_sun).value
         )
-        gas_pos = np.array(
+        gas_pos_all = np.array(
             f["PartType0"]["Coordinates"][:] * UnitLength.to(u.kpc).value
         )
 
-        dm_mass = np.array(
+        dm_mass_all = np.array(
             f["PartType1"]["Masses"][:] * UnitMass.to(u.M_sun).value
         )
-        dm_pos = np.array(
+        dm_pos_all = np.array(
             f["PartType1"]["Coordinates"][:] * UnitLength.to(u.kpc).value
         )
 
-        dm2_mass = np.array(
+        dm2_mass_all = np.array(
             f["PartType2"]["Masses"][:] * UnitMass.to(u.M_sun).value
         )
-        dm2_pos = np.array(
+        dm2_pos_all = np.array(
             f["PartType2"]["Coordinates"][:] * UnitLength.to(u.kpc).value
         )
 
-        star_mass = np.array(
+        star_mass_all = np.array(
             f["PartType4"]["Masses"][:] * UnitMass.to(u.M_sun).value
         )
-        star_pos = np.array(
+        star_pos_all = np.array(
             f["PartType4"]["Coordinates"][:] * UnitLength.to(u.kpc).value
         )
 
-    # Default centers as in the original script (only box 3 used here)
-    center_box3 = (51532, 56850, 51738)
-    center = center_box3
+    # Slice to halo particles
+    start_gas = np.sum(halo_length[:target, 0])
+    end_gas = start_gas + halo_length[target, 0]
+    gas_mass = gas_mass_all[start_gas:end_gas]
+    gas_pos = gas_pos_all[start_gas:end_gas]
+
+    start_dm = np.sum(halo_length[:target, 1])
+    end_dm = start_dm + halo_length[target, 1]
+    dm_mass = dm_mass_all[start_dm:end_dm]
+    dm_pos = dm_pos_all[start_dm:end_dm]
+
+    start_dm2 = np.sum(halo_length[:target, 2])
+    end_dm2 = start_dm2 + halo_length[target, 2]
+    dm2_mass = dm2_mass_all[start_dm2:end_dm2]
+    dm2_pos = dm2_pos_all[start_dm2:end_dm2]
+
+    start_star = np.sum(halo_length[:target, 4])
+    end_star = start_star + halo_length[target, 4]
+    star_mass = star_mass_all[start_star:end_star]
+    star_pos = star_pos_all[start_star:end_star]
+
+    center = halo_pos * UnitLength.to(u.kpc).value  # assuming halo_pos is in code units
 
     def center_and_box_wrap(pos, mass, center_vec, boxsize_val):
         pos = np.array(pos, copy=True)
@@ -261,10 +285,10 @@ def compute_rotation_curve_and_save(
         rad = np.sqrt(pos[:, 0] ** 2 + pos[:, 1] ** 2 + pos[:, 2] ** 2)
         return rad, mass
 
-    gas_rad, gas_mass = center_and_box_wrap(gas_pos, gas_mass, center, boxsize)
-    dm_rad, dm_mass = center_and_box_wrap(dm_pos, dm_mass, center, boxsize)
-    dm2_rad, dm2_mass = center_and_box_wrap(dm2_pos, dm2_mass, center, boxsize)
-    star_rad, star_mass = center_and_box_wrap(star_pos, star_mass, center, boxsize)
+    gas_rad, gas_mass = center_and_box_wrap(gas_pos, gas_mass, center, boxsize_kpc)
+    dm_rad, dm_mass = center_and_box_wrap(dm_pos, dm_mass, center, boxsize_kpc)
+    dm2_rad, dm2_mass = center_and_box_wrap(dm2_pos, dm2_mass, center, boxsize_kpc)
+    star_rad, star_mass = center_and_box_wrap(star_pos, star_mass, center, boxsize_kpc)
 
     dr = 0.05
     rmax = 50.0

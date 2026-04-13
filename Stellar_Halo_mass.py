@@ -71,41 +71,45 @@ def _get_hubble_param(path: str, snapnum: int) -> float:
 
 def _compute_total_masses(sim_path: str,
                           snapnum: int = None,
-                          redshift: float = None,
+                          box_num: int = None,
                           verbose: bool = True):
     """
     Use load_particles to get stellar and dark matter masses and
     return total masses in physical units [Msun].
     """
-    if snapnum is None and redshift is None:
-        raise ValueError("Must supply either snapnum or redshift")
+    if snapnum is None:
+        raise ValueError("snapnum must be provided")
+    if box_num is None:
+        raise ValueError("box_num must be provided")
+
+    # Identify target halo
+    target = identify_target_halo(sim_path, box_num, snapnum)
+    halo_length = il.groupcat.loadHalos(sim_path, snapnum, 'GroupLenType')
 
     # Load particle masses in code units (1e10 Msun / h for AREPO/Illustris)
     star_data = load_particles(sim_path, "stars", ["Masses"],
-                               redshift=redshift, snapnum=snapnum,
+                               snapnum=snapnum,
                                verbose=verbose)
     dm_data = load_particles(sim_path, "dm", ["Masses"],
-                             redshift=redshift, snapnum=snapnum,
+                             snapnum=snapnum,
                              verbose=verbose)
-
-    # Resolve the actual snapshot number (if we came in via redshift)
-    if snapnum is None:
-        # load_particles already printed which snapshot was loaded;
-        # here we simply assume the target is uniquely determined by redshift
-        # and use a naive search equivalent to load_sim_data.find_snapshot_from_redshift.
-        raise ValueError("For now, please call with snapnum set explicitly.")
 
     h = _get_hubble_param(sim_path, snapnum)
 
-    star_masses_code = star_data["Masses"]
-    dm_masses_code = dm_data["Masses"]
+    # Slice to halo particles
+    start_star = np.sum(halo_length[:target, 4])
+    end_star = start_star + halo_length[target, 4]
+    star_masses_code = star_data["Masses"][start_star:end_star]
 
-    # Convert from 1e10 Msun / h to Msun
-    factor = 1.0e10 / h
-    total_stellar = np.sum(star_masses_code) * factor
-    total_dm = np.sum(dm_masses_code) * factor
+    start_dm = np.sum(halo_length[:target, 1])
+    end_dm = start_dm + halo_length[target, 1]
+    dm_masses_code = dm_data["Masses"][start_dm:end_dm]
 
-    return total_stellar, total_dm
+    # Convert to physical masses
+    star_masses = star_masses_code * 1e10 / h
+    dm_masses = dm_masses_code * 1e10 / h
+
+    return np.sum(star_masses), np.sum(dm_masses)
 
 
 def plot_stellar_halo_mass(sim_path: str,
@@ -131,7 +135,7 @@ def plot_stellar_halo_mass(sim_path: str,
         If True, prints a short message with the computed masses.
     """
     total_stellar, total_dm = _compute_total_masses(
-        sim_path, snapnum=snapnum, redshift=None, verbose=verbose
+        sim_path, snapnum=snapnum, box_num=box_num, verbose=verbose
     )
 
     if verbose:

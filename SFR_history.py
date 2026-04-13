@@ -7,6 +7,9 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from load_sim_data import identify_target_halo
+import illustris_python_te as il
+
 
 def _find_snapshot_file(sim_path: str, snapnum: int) -> str | None:
     """
@@ -72,7 +75,14 @@ def plot_sfr_history(
             if "PartType0" not in f or "StarFormationRate" not in f["PartType0"]:
                 continue
 
-            sfr = np.sum(f["PartType0"]["StarFormationRate"][:])
+            # Identify target halo at this snap
+            target = identify_target_halo(sim_path, box_num, snap)
+            halo_length = il.groupcat.loadHalos(sim_path, snap, 'GroupLenType')
+            start = np.sum(halo_length[:target, 0])
+            end = start + halo_length[target, 0]
+            
+            sfr_all = f["PartType0"]["StarFormationRate"][:]
+            sfr = np.sum(sfr_all[start:end])
 
         redshifts.append(z)
         sfr_values.append(sfr)
