@@ -56,8 +56,8 @@ def plot_2d_hist(
     halo_length = loadHalos(box_num,snapnum,'GroupLenType')
 
     # Using halo lengths to index DM particles
-    Particle_positions = Positions['Coordinates'][np.sum(halo_length[:target,1]):np.sum(halo_length[:target,1]) + halo_length[target,1]]
-    Particle_Masses = Masses['Masses'][np.sum(halo_length[:target,1]):np.sum(halo_length[:target,1]) + halo_length[target,1]]
+    Particle_positions = Positions['Coordinates'][np.sum(halo_length[:target,parttype]):np.sum(halo_length[:target,parttype]) + halo_length[target,parttype]]
+    Particle_Masses = Masses['Masses'][np.sum(halo_length[:target,parttype]):np.sum(halo_length[:target,parttype]) + halo_length[target,parttype]]
 
     H, xedges, yedges = np.histogram2d(Particle_positions[:,0], Particle_positions[:,1], bins=(nbins,nbins), weights=Particle_Masses)
 
