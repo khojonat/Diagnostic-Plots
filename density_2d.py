@@ -57,6 +57,7 @@ def plot_2d_hist(
         extent=extent,
         aspect="equal",
         cmap=cmap,
+        norm = 'log'
     )
 
     ax.set_xlabel(xlabel)
