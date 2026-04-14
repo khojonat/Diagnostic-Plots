@@ -1,0 +1,6 @@
+#--- Standard base directories for FOF/sub and snapshot data ---# 
+fof_sub_base   =  /standard/DREAMS/FOF_Subfind/CDM/varied_mass/FIRE2_SB9/
+snapshot_base  =  /standard/DREAMS/Sims/CDM/varied_mass/FIRE2_SB9/
+
+code           =  gizmo   # arepo
+

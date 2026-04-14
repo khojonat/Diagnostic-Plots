@@ -65,7 +65,7 @@ def _get_hubble_param(box_num: int, snapnum: int) -> float:
     Read HubbleParam from the snapshot header.
     """
     from load_sim_data import snapshot_base
-    snapfile = snapshot_base + f'run_{box_num}/snap_{snapnum:03d}.hdf5'
+    snapfile = os.path.join(snapshot_base, f'run_{box_num}', f'snap_{snapnum:03d}.hdf5')
     with h5py.File(snapfile, "r") as f:
         return float(f["Header"].attrs["HubbleParam"])
 

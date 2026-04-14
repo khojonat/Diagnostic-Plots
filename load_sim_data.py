@@ -8,9 +8,41 @@ from read_sobol import read_sobol
 import astropy.units as u
 import six
 
-#--- Standard base directories for FOF/sub and snapshot data ---# 
-fof_sub_base = '/standard/DREAMS/FOF_Subfind/CDM/varied_mass/FIRE2_SB9/'
-snapshot_base = '/standard/DREAMS/Sims/CDM/varied_mass/FIRE2_SB9/'
+
+def _read_sim_params() -> dict:
+    config_file = os.path.join(os.path.dirname(__file__), "Sim_params.txt")
+    params = {}
+    with open(config_file, "r") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "#" in line:
+                line = line.split("#", 1)[0].strip()
+            if "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            params[key.strip()] = value.strip()
+    return params
+
+
+def _normalize_path(path: str) -> str:
+    path = path.strip()
+    if not path:
+        return path
+    if path.endswith(os.sep):
+        return path
+    return path + os.sep
+
+
+_sim_params = _read_sim_params()
+snapshot_base = _normalize_path(_sim_params.get("snapshot_base", ""))
+fof_sub_base = _normalize_path(_sim_params.get("fof_sub_base", ""))
+code = _sim_params.get("code", "arepo").strip().lower()
+
+if not snapshot_base or not fof_sub_base:
+    raise ValueError("Sim_params.txt must define snapshot_base and fof_sub_base.")
+
 
 def parttype_map(parttype):
     ''' Convert string parttypes to integers '''
@@ -55,7 +87,7 @@ def load_particles(box_num, parttype, fields, redshift=None,
     Load particle fields from AREPO or GIZMO snapshots
     using raw HDF5 access.
     """
-    path = snapshot_base + f'run_{box_num}/'
+    path = os.path.join(snapshot_base, f"run_{box_num}")
 
     if isinstance(parttype, str):
         try:
@@ -124,8 +156,8 @@ def identify_target_halo(box_num,snapnum):
     min_mass = Mtarget - 0.1 * 2 # Doubling tolerance to try to catch valid halo
     max_mass = Mtarget + 0.1 * 2
     
-    path = snapshot_base + f'run_{box_num}/'
-    with h5py.File(path+f"/snap_{snapnum:03}.hdf5", "r") as f:
+    path = os.path.join(snapshot_base, f'run_{box_num}')
+    with h5py.File(os.path.join(path, f"snap_{snapnum:03d}.hdf5"), "r") as f:
 
         Header = f['Header']
         h = Header.attrs['HubbleParam']
@@ -214,7 +246,7 @@ def compute_rotation_curve_and_save(
     halo_length = loadHalos(box_num, snapnum, 'GroupLenType')
     halo_pos = loadHalos(box_num, snapnum, 'GroupPos')[target]
 
-    snap_path = snapshot_base + f'run_{box_num}/'
+    snap_path = os.path.join(snapshot_base, f'run_{box_num}')
     snapfile = os.path.join(snap_path, f"snap_{snapnum:03d}.hdf5")
     with h5py.File(snapfile, "r") as f:
         header = f["Header"]
@@ -382,7 +414,7 @@ def gcPath(basePath, snapNum):
 def loadHalos(box_num, snapNum, fields=None):
     """ Load all halo information from the entire group catalog for one snapshot
        (optionally restrict to a subset given by fields). """
-    basePath = fof_sub_base + f'run_{box_num}/'
+    basePath = os.path.join(fof_sub_base, f'run_{box_num}') + os.sep
     return loadObjects(basePath, snapNum, "Group", "groups", fields)
 
 def loadObjects(basePath, snapNum, gName, nName, fields):

@@ -6,8 +6,10 @@ import matplotlib
 matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from astropy.cosmology import FlatLambdaCDM
+import astropy.units as u
 
-from load_sim_data import identify_target_halo, loadHalos
+from load_sim_data import code, loadHalos, snapshot_base
 
 
 def _find_snapshot_file(box_num: int, snapnum: int) -> str | None:
@@ -16,8 +18,7 @@ def _find_snapshot_file(box_num: int, snapnum: int) -> str | None:
     snapdir_XXX/snap_XXX.hdf5 and snap_XXX.hdf5 in sim_path.
     Returns None if no file is found.
     """
-    from load_sim_data import snapshot_base
-    path = snapshot_base + f'run_{box_num}/'
+    path = os.path.join(snapshot_base, f'run_{box_num}')
     snapdir = os.path.join(path, f"snapdir_{snapnum:03d}")
     if os.path.isdir(snapdir):
         snapfile = os.path.join(snapdir, f"snap_{snapnum:03d}.hdf5")
@@ -73,17 +74,45 @@ def plot_sfr_history(
         with h5py.File(snapfile, "r") as f:
             header = f["Header"]
             z = float(header.attrs.get("Redshift", 0.0))
-            if "PartType0" not in f or "StarFormationRate" not in f["PartType0"]:
-                continue
-
-            # Identify target halo at this snap
-            # target = identify_target_halo(box_num, snap)
             halo_length = loadHalos(box_num, snap, 'GroupLenType')
             start = np.sum(halo_length[:target, 0])
             end = start + halo_length[target, 0]
-            
-            sfr_all = f["PartType0"]["StarFormationRate"][:]
-            sfr = np.sum(sfr_all[start:end])
+
+            if code == "arepo":
+                if "PartType0" not in f or "StarFormationRate" not in f["PartType0"]:
+                    continue
+                sfr_all = f["PartType0"]["StarFormationRate"][:]
+                sfr = np.sum(sfr_all[start:end])
+            elif code == "gizmo":
+                if "PartType4" not in f or "StellarFormationTime" not in f["PartType4"]:
+                    continue
+                star_ages = f["PartType4"]["StellarFormationTime"][:]
+                star_masses = f["PartType4"]["Masses"][:]
+
+                if "Time" in header.attrs:
+                    a_snap = float(header.attrs["Time"])
+                else:
+                    a_snap = 1.0 / (1.0 + float(header.attrs.get("Redshift", 0.0)))
+
+                h = float(header.attrs.get("HubbleParam", 1.0))
+                H0 = 100.0 * h * u.km / u.s / u.Mpc
+                Om0 = float(header.attrs.get("Omega0", 0.3))
+                cosmo = FlatLambdaCDM(H0=H0, Om0=Om0)
+                z_snap = 1.0 / a_snap - 1.0
+                t_snap = cosmo.age(z_snap).to(u.Myr).value
+
+                valid = (star_ages > 0) & (star_ages <= 1.0)
+                t_form = np.full_like(star_ages, np.inf, dtype=float)
+                if np.any(valid):
+                    z_form = np.maximum(0.0, 1.0 / star_ages[valid] - 1.0)
+                    t_form[valid] = cosmo.age(z_form).to(u.Myr).value
+
+                dt = t_snap - t_form
+                recent = (dt >= 0.0) & (dt <= 30.0)
+                star_mass_recent = star_masses[recent]
+                sfr = np.sum(star_mass_recent) * 1e10 / h / (30.0e6)
+            else:
+                raise ValueError(f"Unsupported code type: {code}")
 
         redshifts.append(z)
         sfr_values.append(sfr)
