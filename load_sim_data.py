@@ -38,6 +38,7 @@ def _normalize_path(path: str) -> str:
 _sim_params = _read_sim_params()
 snapshot_base = _normalize_path(_sim_params.get("snapshot_base", ""))
 fof_sub_base = _normalize_path(_sim_params.get("fof_sub_base", ""))
+plot_dir = _normalize_path(_sim_params.get("plot_dir", "Plots"))
 code = _sim_params.get("code", "arepo").strip().lower()
 
 if not snapshot_base or not fof_sub_base:
@@ -191,7 +192,7 @@ def identify_target_halo(box_num,snapnum):
             
         i += 1
 
-    return target
+    return target, min_mass, max_mass
 
 
 def split_paired_array(arr, first_is_x: bool = True):

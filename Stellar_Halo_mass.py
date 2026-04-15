@@ -116,6 +116,8 @@ def _compute_total_masses(box_num: int,
 def plot_stellar_halo_mass(box_num: int,
                            snapnum: int,
                            target: int,
+                           min_mass: float,
+                           max_mass: float,
                            output_dir: str = "Plots",
                            verbose: bool = True):
     """
@@ -154,7 +156,7 @@ def plot_stellar_halo_mass(box_num: int,
     label = f"Box {box_num}" if box_num is not None else "Simulation"
     ax.scatter(np.log10(total_dm), np.log10(total_stellar), label=label)
 
-    ax.vlines(np.log10([5e11, 2.5e12]), 9, 12,
+    ax.vlines(np.log10([min_mass, max_mass]), 9, 12,
               color="red", ls="--", label="Min and Max")
 
     # Example: uncomment if you want Read et al. points

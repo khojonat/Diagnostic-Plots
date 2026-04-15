@@ -11,7 +11,7 @@ from rotation_curve import plot_rotation_curve
 from density_2d import plot_2d_hist
 from SFR_history import plot_sfr_history
 from Kennicutt_Schmidt import plot_kennicutt_schmidt
-from load_sim_data import compute_rotation_curve_and_save, load_particles
+from load_sim_data import compute_rotation_curve_and_save, load_particles, plot_dir
 
 
 def run_all_diagnostics(box_num: int, snapnum: int):
@@ -24,7 +24,9 @@ def run_all_diagnostics(box_num: int, snapnum: int):
     from load_sim_data import identify_target_halo
     
     # Identify target halo once
-    target = identify_target_halo(box_num, snapnum)
+    target, min_mass, max_mass = identify_target_halo(box_num, snapnum)
+    
+    output_dir = os.path.join(plot_dir, f"run_{box_num}")
     
     results = {}
 
@@ -32,31 +34,37 @@ def run_all_diagnostics(box_num: int, snapnum: int):
         box_num=box_num,
         snapnum=snapnum,
         target=target,
+        min_mass=min_mass,
+        max_mass=max_mass,
+        output_dir=output_dir,
     )
 
     rot_curve_file = compute_rotation_curve_and_save(
         box_num=box_num,
         snapnum=snapnum,
         target=target,
+        output_dir=os.path.join(output_dir, "sim_data"),
     )
     results["rotation_curve_data"] = rot_curve_file
 
     results["rotation_curve_plot"] = plot_rotation_curve(
         rot_curve_file=rot_curve_file,
         box_num=box_num,
+        output_dir=output_dir,
     )
 
     results["tully_fisher_plot"] = plot_tully_fisher(
         rot_curve_file=rot_curve_file,
         box_num=box_num,
+        output_dir=output_dir,
     )
 
     # 2D density maps for DM, gas, and stars
-    os.makedirs("Plots", exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
 
     def _component_density(parttype_str: str, label: str, filename: str):
 
-        output_path = os.path.join("Plots", filename)
+        output_path = os.path.join(output_dir, filename)
         return plot_2d_hist(
             box_num=box_num,
             snapnum=snapnum,
@@ -85,6 +93,7 @@ def run_all_diagnostics(box_num: int, snapnum: int):
         box_num=box_num,
         max_snapnum=snapnum,
         target=target,
+        output_dir=output_dir,
     )
 
     # Kennicutt–Schmidt relation for the current snapshot
@@ -92,6 +101,7 @@ def run_all_diagnostics(box_num: int, snapnum: int):
         box_num=box_num,
         snapnum=snapnum,
         target=target,
+        output_dir=output_dir,
     )
 
     return results
