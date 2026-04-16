@@ -6,7 +6,10 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from load_sim_data import load_particles, identify_target_halo, loadHalos
+from load_sim_data import load_particles, identify_target_halo, loadHalos, split_paired_array
+
+# Literature comparison
+Kennicut_Evans_2012 = np.array([0.13207299196279654, -3.7397260273972615, 0.5583784057018653, -3.1506849315068495, 0.9698427943183545, -2.5342465753424657, 1.3668301066572313, -2.013698630136986, 1.822494060557044, -1.3698630136986303, 2.4545518879846338, -0.47945205479452024, 3.0718900065712984, 0.397260273972603, 3.5863519183137043, 1.1232876712328772, 4.144932517818329, 1.9041095890410962, 4.703432239801851, 2.712328767123288])
 
 
 def _compute_annular_surface_densities(
@@ -152,6 +155,10 @@ def plot_kennicutt_schmidt(
     sigma_sfr = sigma_sfr[good]
 
     fig, ax = plt.subplots(figsize=(6, 6))
+
+    KE12_x, KE12_y = split_paired_array(Kennicut_Evans_2012, first_is_x=True)
+    ax.plot(Z25_y, Z25_x, label=r"$\rm Kennicut~\&~Evans~2012$")
+    
     ax.scatter(
         np.log10(sigma_gas),
         np.log10(sigma_sfr),

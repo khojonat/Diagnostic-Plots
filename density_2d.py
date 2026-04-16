@@ -78,7 +78,7 @@ def plot_2d_hist(
     if title is not None:
         ax.set_title(title)
 
-    cbar = fig.colorbar(im, ax=ax)
+    cbar = fig.colorbar(im, ax=ax,shrink=0.7)
     cbar.set_label("Counts")
 
     fig.tight_layout()

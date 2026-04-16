@@ -6,8 +6,7 @@ import matplotlib.pyplot as plt
 
 from load_sim_data import load_particles, split_paired_array, identify_target_halo, loadHalos
 
-
-# Literature comparison data (kept as provided)
+# Literature comparison data 
 Zacharegkas_etal = np.array([
     9.078366290018831, 11.157768361581923,
     9.541596045197739, 11.370409604519775,
@@ -156,15 +155,15 @@ def plot_stellar_halo_mass(box_num: int,
     label = f"Box {box_num}" if box_num is not None else "Simulation"
     ax.scatter(np.log10(total_dm), np.log10(total_stellar), label=label)
 
-    ax.vlines([min_mass, max_mass], 9, 14,
+    ax.vlines([min_mass, max_mass], 7, 12,
               color="red", ls="--", label="Min and Max")
 
     # Example: uncomment if you want Read et al. points
     # ax.scatter(np.log10(R17_x), np.log10(R17_y), label="Read et al. 2017")
-    ax.plot(Z25_x, Z25_y, label="Zacharegkas et al. 2025")
+    ax.plot(Z25_y, Z25_x, label="Zacharegkas et al. 2025")
 
-    ax.set_xlabel(r"Stellar mass $[M_\odot]$", size=15)
-    ax.set_ylabel(r"Halo mass $[M_\odot]$", size=15)
+    ax.set_ylabel(r"Stellar mass $[M_\odot]$", size=15)
+    ax.set_xlabel(r"Halo mass $[M_\odot]$", size=15)
     ax.legend()
 
     os.makedirs(output_dir, exist_ok=True)
