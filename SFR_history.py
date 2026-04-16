@@ -132,7 +132,7 @@ def plot_sfr_history(
     ax.plot(redshifts, sfr_values, marker="o")
 
     ax.set_xlabel("Redshift")
-    ax.set_ylabel("Total SFR")
+    ax.set_ylabel(r"Total SFR [$\rm M_\odot/yr$]")
     ax.set_yscale("log")
     title = "Star Formation History"
     if box_num is not None:

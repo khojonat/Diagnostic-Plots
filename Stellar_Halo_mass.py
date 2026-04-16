@@ -156,15 +156,15 @@ def plot_stellar_halo_mass(box_num: int,
     label = f"Box {box_num}" if box_num is not None else "Simulation"
     ax.scatter(np.log10(total_dm), np.log10(total_stellar), label=label)
 
-    ax.vlines(np.log10([min_mass, max_mass]), 9, 12,
+    ax.vlines([min_mass, max_mass], 9, 14,
               color="red", ls="--", label="Min and Max")
 
     # Example: uncomment if you want Read et al. points
     # ax.scatter(np.log10(R17_x), np.log10(R17_y), label="Read et al. 2017")
     ax.plot(Z25_x, Z25_y, label="Zacharegkas et al. 2025")
 
-    ax.set_ylabel(r"Stellar mass $[M_\odot]$", size=15)
-    ax.set_xlabel(r"Halo mass $[M_\odot]$", size=15)
+    ax.set_xlabel(r"Stellar mass $[M_\odot]$", size=15)
+    ax.set_ylabel(r"Halo mass $[M_\odot]$", size=15)
     ax.legend()
 
     os.makedirs(output_dir, exist_ok=True)
