@@ -218,9 +218,9 @@ def plot_kennicutt_schmidt(
             t_form[valid] = cosmo.age(z_form).to(u.Myr).value
 
         dt = t_snap - t_form
-        recent = (dt >= 0.0) & (dt <= 30.0)
+        recent = (dt >= 0.0) & (dt <= 500.0) # Checking past 500 Myr
         sfr_stars = np.zeros_like(masses_stars)
-        sfr_stars[recent] = masses_stars[recent] / (30.0e6)  # since masses are in code units, need to convert
+        sfr_stars[recent] = masses_stars[recent] / (500.0e6) 
 
         if r_max is None:
             r_max = np.percentile(R_gas, 99.0)

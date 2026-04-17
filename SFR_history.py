@@ -108,9 +108,9 @@ def plot_sfr_history(
                     t_form[valid] = cosmo.age(z_form).to(u.Myr).value
 
                 dt = t_snap - t_form
-                recent = (dt >= 0.0) & (dt <= 30.0)
+                recent = (dt >= 0.0) & (dt <= 500.0)
                 star_mass_recent = star_masses[recent]
-                sfr = np.sum(star_mass_recent) * 1e10 / h / (30.0e6)
+                sfr = np.sum(star_mass_recent) * 1e10 / h / (500.0e6)
             else:
                 raise ValueError(f"Unsupported code type: {code}")
 
