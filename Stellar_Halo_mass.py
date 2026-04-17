@@ -46,6 +46,24 @@ Read_etal = np.array([
     489095806.71506673, 134879.0452151551,
 ])
 
+Wang_etal = np.array([
+    32917456.737695787, 30.406899326507,
+    50087793.86869629, 74.65605128970535,
+    75279305.4003894, 208.3941142745337,
+    105062497.67666402, 431.1961977256241,
+    114546344.25494413, 534.015889536362,
+    143052673.447375, 784.7599703514622,
+    183119496.03857014, 1203.6365190931167,
+    261957334.68653345, 2386.211741394953,
+    479694951.11405057, 7572.808349202965,
+    1225947436.5447083, 41907.429363976524,
+    2668538411.0996227, 171907.22018585782,
+    5808648102.878435, 768155.0966474186,
+    12800844026.583998, 3738999.5936589604,
+    22037561580.36261, 11369138.422623834,
+    42398046272.63869, 41020702.723806135,
+    92288471480.4732, 191308270.76154342])
+
 
 def _find_snapshot_file(path: str, snapnum: int) -> str:
     """
@@ -149,18 +167,20 @@ def plot_stellar_halo_mass(box_num: int,
     Z25_x, Z25_y = split_paired_array(Zacharegkas_etal, first_is_x=True)
     # Read et al.: [y0, x0, y1, x1, ...]
     R17_x, R17_y = split_paired_array(Read_etal, first_is_x=False)
+    # Wang et al.: [x0, y0, x1, y1, ...]
+    W21_x, W21_y = split_paired_array(Wang_etal, first_is_x=True)
 
     fig, ax = plt.subplots(figsize=(8, 6))
 
     label = f"Box {box_num}" if box_num is not None else "Simulation"
     ax.scatter(np.log10(total_dm), np.log10(total_stellar), label=label)
 
-    ax.vlines([min_mass, max_mass], 7, 12,
+    ax.vlines([min_mass, max_mass], 4, 12,
               color="red", ls="--", label="Min and Max")
 
-    # Example: uncomment if you want Read et al. points
     # ax.scatter(np.log10(R17_x), np.log10(R17_y), label="Read et al. 2017")
     ax.plot(Z25_y, Z25_x, label="Zacharegkas et al. 2025")
+    ax.plot(np.log10(W21_x), np.log10(W21_y), label="Wang et al. 2021")
 
     ax.set_ylabel(r"Stellar mass $[M_\odot]$", size=15)
     ax.set_xlabel(r"Halo mass $[M_\odot]$", size=15)
