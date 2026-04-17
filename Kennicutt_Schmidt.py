@@ -138,7 +138,7 @@ def plot_kennicutt_schmidt(
                 "Gas StarFormationRate field not found; cannot compute Kennicutt–Schmidt law."
             )
 
-        masses_gas = np.asarray(data_gas["Masses"])[start_gas:end_gas]
+        masses_gas = np.asarray(data_gas["Masses"])[start_gas:end_gas] * 1e10 / h
         coords_gas = np.asarray(data_gas["Coordinates"])[start_gas:end_gas]
         sfr_gas = np.asarray(data_gas["StarFormationRate"])[start_gas:end_gas]
 
@@ -157,42 +157,9 @@ def plot_kennicutt_schmidt(
         snapfile = _find_snapshot_file(box_num, snapnum)
         with h5py.File(snapfile, "r") as f:
             h = float(f["Header"].attrs.get("HubbleParam", 1.0))
-        sigma_gas *= 1e10 / h
 
     elif code == "gizmo":
-        # Load gas for sigma_gas
-        data_gas = load_particles(
-            box_num,
-            "gas",
-            fields=["Masses", "Coordinates"],
-            snapnum=snapnum,
-            redshift=None,
-            verbose=False,
-        )
-
-        masses_gas = np.asarray(data_gas["Masses"])[start_gas:end_gas]
-        coords_gas = np.asarray(data_gas["Coordinates"])[start_gas:end_gas]
-        coords_centered_gas = coords_gas - halo_pos
-        R_gas = np.sqrt(coords_centered_gas[:, 0]**2 + coords_centered_gas[:, 1]**2)
-
-        # Load stars for sigma_sfr
-        data_stars = load_particles(
-            box_num,
-            "stars",
-            fields=["Masses", "Coordinates", "StellarFormationTime"],
-            snapnum=snapnum,
-            redshift=None,
-            verbose=False,
-        )
-
-        masses_stars = np.asarray(data_stars["Masses"])[start_stars:end_stars]
-        coords_stars = np.asarray(data_stars["Coordinates"])[start_stars:end_stars]
-        star_ages = np.asarray(data_stars["StellarFormationTime"])[start_stars:end_stars]
-
-        coords_centered_stars = coords_stars - halo_pos
-        R_stars = np.sqrt(coords_centered_stars[:, 0]**2 + coords_centered_stars[:, 1]**2)
-
-        # Compute snapshot time and star formation times
+        
         snapfile = _find_snapshot_file(box_num, snapnum)
         if snapfile is None:
             raise RuntimeError(f"Snapshot file for snapnum {snapnum} not found.")
@@ -210,7 +177,40 @@ def plot_kennicutt_schmidt(
             cosmo = FlatLambdaCDM(H0=H0, Om0=Om0)
             z_snap = 1.0 / a_snap - 1.0
             t_snap = cosmo.age(z_snap).to(u.Myr).value
+            
+        # Load gas for sigma_gas
+        data_gas = load_particles(
+            box_num,
+            "gas",
+            fields=["Masses", "Coordinates"],
+            snapnum=snapnum,
+            redshift=None,
+            verbose=False,
+        )
 
+        masses_gas = np.asarray(data_gas["Masses"])[start_gas:end_gas] * 1e10 / h
+        coords_gas = np.asarray(data_gas["Coordinates"])[start_gas:end_gas]
+        coords_centered_gas = coords_gas - halo_pos
+        R_gas = np.sqrt(coords_centered_gas[:, 0]**2 + coords_centered_gas[:, 1]**2)
+
+        # Load stars for sigma_sfr
+        data_stars = load_particles(
+            box_num,
+            "stars",
+            fields=["Masses", "Coordinates", "StellarFormationTime"],
+            snapnum=snapnum,
+            redshift=None,
+            verbose=False,
+        )
+
+        masses_stars = np.asarray(data_stars["Masses"])[start_stars:end_stars] * 1e10 / h
+        coords_stars = np.asarray(data_stars["Coordinates"])[start_stars:end_stars]
+        star_ages = np.asarray(data_stars["StellarFormationTime"])[start_stars:end_stars]
+
+        coords_centered_stars = coords_stars - halo_pos
+        R_stars = np.sqrt(coords_centered_stars[:, 0]**2 + coords_centered_stars[:, 1]**2)
+
+        # Compute snapshot time and star formation times
         valid = (star_ages > 0) & (star_ages <= 1.0)
         t_form = np.full_like(star_ages, np.inf, dtype=float)
         if np.any(valid):
@@ -220,15 +220,7 @@ def plot_kennicutt_schmidt(
         dt = t_snap - t_form
         recent = (dt >= 0.0) & (dt <= 30.0)
         sfr_stars = np.zeros_like(masses_stars)
-        sfr_stars[recent] = masses_stars[recent] * 1e10 / h / (30.0e6)  # since masses are in code units, need to convert
-
-        # Wait, in SFR_history.py, sfr = np.sum(star_mass_recent) * 1e10 / h / (30.0e6)
-        # Yes, because masses are in 1e10 Msun/h units? No, in FIRE, masses are in Msun / h, I think.
-        # In the code, *1e10 / h, but 1e10 / h would be wrong.
-        # In SFR_history.py: sfr = np.sum(star_mass_recent) * 1e10 / h / (30.0e6)
-        # But star_mass_recent is from f["PartType4"]["Masses"], which in GADGET is in 1e10 Msun/h units.
-        # Yes, so *1e10 / h to get Msun, then / 30e6 to get Msun/yr.
-        # Yes.
+        sfr_stars[recent] = masses_stars[recent] / (30.0e6)  # since masses are in code units, need to convert
 
         if r_max is None:
             r_max = np.percentile(R_gas, 99.0)
@@ -245,8 +237,6 @@ def plot_kennicutt_schmidt(
             R_stars, np.ones(len(masses_stars)), sfr_stars, r_bins
         )
 
-        sigma_gas *= 1e10 / h
-
     else:
         raise ValueError(f"Unsupported code type: {code}")
 
@@ -254,11 +244,11 @@ def plot_kennicutt_schmidt(
     good = (sigma_gas > 0) & (sigma_sfr > 0)
     sigma_gas = sigma_gas[good]
     sigma_sfr = sigma_sfr[good]
-
+    
     fig, ax = plt.subplots(figsize=(6, 6))
 
     KE12_x, KE12_y = split_paired_array(Kennicut_Evans_2012, first_is_x=True)
-    ax.plot(KE12_x, KE12_y, label=r"$\rm Kennicut~\&~Evans~2012$")
+    ax.plot(KE12_x, KE12_y, label=r"Kennicut+Evans 2012, N=1.4")
     
     ax.scatter(
         np.log10(sigma_gas),
@@ -283,6 +273,7 @@ def plot_kennicutt_schmidt(
     if box_num is not None:
         title += f" (box {box_num})"
     ax.set_title(title)
+    ax.legend()
 
     fig.tight_layout()
 
