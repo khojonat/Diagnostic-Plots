@@ -11,59 +11,88 @@ from rotation_curve import plot_rotation_curve
 from density_2d import plot_2d_hist
 from SFR_history import plot_sfr_history
 from Kennicutt_Schmidt import plot_kennicutt_schmidt
-from load_sim_data import compute_rotation_curve_and_save, load_particles, plot_dir
+from load_sim_data import compute_rotation_curve_and_save, plot_dir
+
+
+def read_plot_flags(params_path: Path) -> dict:
+    flags = {}
+    if not params_path.exists():
+        raise FileNotFoundError(f"Sim_params.txt not found at {params_path}")
+
+    with params_path.open("r") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip().split()[0]
+
+            try:
+                flags[key] = int(value)
+            except ValueError:
+                continue
+
+    return flags
 
 
 def run_all_diagnostics(box_num: int, snapnum: int):
     """
     Run all diagnostic plots for a given snapshot.
-    Currently includes:
-      - Stellar–halo mass relation.
-      - Tully–Fisher relation (via precomputed rotation-curve data).
+    Plot production is controlled by flags in Sim_params.txt.
     """
     from load_sim_data import identify_target_halo
-    
+
+    params_path = Path(__file__).resolve().parent / "Sim_params.txt"
+    plot_flags = read_plot_flags(params_path)
+
     # Identify target halo once
     target, min_mass, max_mass = identify_target_halo(box_num, snapnum)
-    
+
     output_dir = os.path.join(plot_dir, f"run_{box_num}")
-    
-    results = {}
-
-    results["stellar_halo_mass_plot"] = plot_stellar_halo_mass(
-        box_num=box_num,
-        snapnum=snapnum,
-        target=target,
-        min_mass=min_mass,
-        max_mass=max_mass,
-        output_dir=output_dir,
-    )
-
-    rot_curve_file = compute_rotation_curve_and_save(
-        box_num=box_num,
-        snapnum=snapnum,
-        target=target,
-        output_dir=os.path.join(output_dir, "sim_data"),
-    )
-    results["rotation_curve_data"] = rot_curve_file
-
-    results["rotation_curve_plot"] = plot_rotation_curve(
-        rot_curve_file=rot_curve_file,
-        box_num=box_num,
-        output_dir=output_dir,
-    )
-
-    results["tully_fisher_plot"] = plot_tully_fisher(
-        rot_curve_file=rot_curve_file,
-        box_num=box_num,
-        output_dir=output_dir,
-    )
-
-    # 2D density maps for DM, gas, and stars
     os.makedirs(output_dir, exist_ok=True)
 
-    def _component_density(parttype_str: str, label: str, filename: str):
+    results = {}
 
+    if plot_flags.get("stellar_halo", 0):
+        results["stellar_halo_mass_plot"] = plot_stellar_halo_mass(
+            box_num=box_num,
+            snapnum=snapnum,
+            target=target,
+            min_mass=min_mass,
+            max_mass=max_mass,
+            output_dir=output_dir,
+        )
+
+    rot_needed = plot_flags.get("rot_curve", 0) or plot_flags.get("Tully_Fisher", 0)
+    rot_curve_file = None
+    if rot_needed:
+        rot_curve_file = compute_rotation_curve_and_save(
+            box_num=box_num,
+            snapnum=snapnum,
+            target=target,
+            output_dir=os.path.join(output_dir, "sim_data"),
+        )
+        results["rotation_curve_data"] = rot_curve_file
+
+        if plot_flags.get("rot_curve", 0):
+            results["rotation_curve_plot"] = plot_rotation_curve(
+                rot_curve_file=rot_curve_file,
+                box_num=box_num,
+                output_dir=output_dir,
+            )
+
+        if plot_flags.get("Tully_Fisher", 0):
+            results["tully_fisher_plot"] = plot_tully_fisher(
+                rot_curve_file=rot_curve_file,
+                box_num=box_num,
+                output_dir=output_dir,
+            )
+
+    def _component_density(parttype_str: str, label: str, filename: str):
         output_path = os.path.join(output_dir, filename)
         return plot_2d_hist(
             box_num=box_num,
@@ -76,33 +105,38 @@ def run_all_diagnostics(box_num: int, snapnum: int):
             title=label,
         )
 
-    results["dm_density_map"] = _component_density(
-        "dm", f"DM density (run {box_num})", f"FIRE2_MW_run{box_num}_dm_density.png"
-    )
-    results["gas_density_map"] = _component_density(
-        "gas", f"Gas density (run {box_num})", f"FIRE2_MW_run{box_num}_gas_density.png"
-    )
-    results["stellar_density_map"] = _component_density(
-        "stars",
-        f"Stellar density (run {box_num})",
-        f"FIRE2_MW_run{box_num}_stellar_density.png",
-    )
+    if plot_flags.get("DM_density", 0):
+        results["dm_density_map"] = _component_density(
+            "dm", f"DM density (run {box_num})", f"FIRE2_MW_run{box_num}_dm_density.png"
+        )
 
-    # Star formation history up to the current snapshot
-    results["sfr_history_plot"] = plot_sfr_history(
-        box_num=box_num,
-        max_snapnum=snapnum,
-        target=target,
-        output_dir=output_dir,
-    )
+    if plot_flags.get("gas_density", 0):
+        results["gas_density_map"] = _component_density(
+            "gas", f"Gas density (run {box_num})", f"FIRE2_MW_run{box_num}_gas_density.png"
+        )
 
-    # Kennicutt–Schmidt relation for the current snapshot
-    results["kennicutt_schmidt_plot"] = plot_kennicutt_schmidt(
-        box_num=box_num,
-        snapnum=snapnum,
-        target=target,
-        output_dir=output_dir,
-    )
+    if plot_flags.get("star_density", 0):
+        results["stellar_density_map"] = _component_density(
+            "stars",
+            f"Stellar density (run {box_num})",
+            f"FIRE2_MW_run{box_num}_stellar_density.png",
+        )
+
+    if plot_flags.get("SFR_history", 0):
+        results["sfr_history_plot"] = plot_sfr_history(
+            box_num=box_num,
+            max_snapnum=snapnum,
+            target=target,
+            output_dir=output_dir,
+        )
+
+    if plot_flags.get("Ken_Schmidt", 0):
+        results["kennicutt_schmidt_plot"] = plot_kennicutt_schmidt(
+            box_num=box_num,
+            snapnum=snapnum,
+            target=target,
+            output_dir=output_dir,
+        )
 
     return results
 

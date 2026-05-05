@@ -1,7 +1,20 @@
 #--- Standard base directories for FOF/sub and snapshot data ---# 
 fof_sub_base   =  /standard/DREAMS/FOF_Subfind/CDM/varied_mass/FIRE2_SB9/
 snapshot_base  =  /standard/DREAMS/Sims/CDM/varied_mass/FIRE2_SB9/
+
+# Where you want the diagnostic plots to be made
 plot_dir       =  Plots/
 
+# What code was used to produce the sim?
 code           =  gizmo   # arepo
 
+# Set which plots to make; 1 to make or 0 to skip
+DM_density     = 1
+gas_density    = 1
+star_density   = 1
+
+rot_curve      = 1 
+Tully_Fisher   = 1
+stellar_halo   = 1
+SFR_history    = 1
+Ken_Schmidt    = 1
