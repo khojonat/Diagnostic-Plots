@@ -6,7 +6,7 @@ import numpy as np
 
 HUBBLE_PARAM = 0.6909
 
-# Number of particles per component (order 1e5 as requested)
+# Number of particles per component 
 N_GAS = 100_000
 N_DM = 100_000
 N_STARS = 100_000

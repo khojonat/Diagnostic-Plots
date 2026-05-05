@@ -210,10 +210,12 @@ def plot_ordering_comparison(
     )
     fig.tight_layout()
 
-    filename = f"{prefix}test_ordering_{parttype_name}_{result['nbins']}bins.png"
+    filename = f"ordering_test/{prefix}test_ordering_{parttype_name}_{result['nbins']}bins.png"
     output_path = os.path.join(output_dir, filename)
+    os.makedirs(os.path.join(output_dir,"ordering_test"),exist_ok = True)
     fig.savefig(output_path, bbox_inches="tight", dpi=150)
     plt.close(fig)
+    
     saved_files.append(output_path)
 
     return saved_files
@@ -374,8 +376,7 @@ def main():
         print(f"\nLoading snapshot data for run_{args.box_num}, snapshot {args.snapnum}...")
 
         from load_sim_data import snapshot_base
-        snap_dir = os.path.join(snapshot_base, f"run_{args.box_num}", f"snapdir_{args.snapnum:03d}")
-        snap_path = os.path.join(snap_dir, f"snap_{args.snapnum:03d}.hdf5")
+        snap_path = os.path.join(snapshot_base, f"run_{args.box_num}", f"snap_{args.snapnum:03d}.hdf5")
 
         if not os.path.exists(snap_path):
             print(f"Error: Snapshot file not found at {snap_path}")

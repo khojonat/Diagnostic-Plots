@@ -166,8 +166,9 @@ def plot_histograms(result: dict, output_dir: str, prefix: str = "") -> list:
         fig.tight_layout()
 
         # Filename with bin count
-        filename = f"{prefix}test_mass_conservation_{parttype_name}_{nbins}bins.png"
+        filename = f"mass_cons/{prefix}test_mass_conservation_{parttype_name}_{nbins}bins.png"
         output_path = os.path.join(output_dir, filename)
+        os.makedirs(os.path.join(output_dir,"mass_cons"),exist_ok = True)
         fig.savefig(output_path, bbox_inches="tight", dpi=150)
         plt.close(fig)
 
@@ -218,7 +219,7 @@ def run_mass_conservation_tests(
         results[pt] = result
 
         if result["passed"]:
-            print(f"  ✓ PASSED: Mass conserved across all bin counts")
+            print(f"    PASSED: Mass conserved across all bin counts")
             print(f"    Total mass: {result['total_mass']:.6e}")
             for nbins, h_sum in result["histogram_sums"].items():
                 print(f"      nbins={nbins:3d}: {h_sum:.6e}")
@@ -227,7 +228,7 @@ def run_mass_conservation_tests(
             plot_files = plot_histograms(result, output_dir, prefix=prefix)
             print(f"    Saved {len(plot_files)} plots to {output_dir}")
         else:
-            print(f"  ✗ FAILED: Mass conservation check failed")
+            print(f"    FAILED: Mass conservation check failed")
             print(f"    Total mass: {result['total_mass']:.6e}")
             for nbins, h_sum in result["histogram_sums"].items():
                 print(f"      nbins={nbins:3d}: {h_sum:.6e}")
@@ -323,8 +324,7 @@ def main():
         
         # For production data, we load directly from the snapshot HDF5 files
         from load_sim_data import snapshot_base
-        snap_dir = os.path.join(snapshot_base, f"run_{args.box_num}", f"snapdir_{args.snapnum:03d}")
-        snap_path = os.path.join(snap_dir, f"snap_{args.snapnum:03d}.hdf5")
+        snap_path = os.path.join(snapshot_base, f"run_{args.box_num}", f"snap_{args.snapnum:03d}.hdf5")
         
         if not os.path.exists(snap_path):
             print(f"Error: Snapshot file not found at {snap_path}")
@@ -348,7 +348,7 @@ def main():
     tested_types = list(results.keys())
 
     for pt in tested_types:
-        status = "✓ PASS" if results[pt]["passed"] else "✗ FAIL"
+        status = " PASS" if results[pt]["passed"] else " FAIL"
         print(f"{status}: {parttype_names[pt]} (PartType{pt})")
 
     print("\n" + "=" * 70)
