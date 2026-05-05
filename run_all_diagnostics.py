@@ -141,21 +141,157 @@ def run_all_diagnostics(box_num: int, snapnum: int):
     return results
 
 
+def run_test_diagnostics():
+    """
+    Run diagnostic plots on the toy test galaxy.
+    Uses test_galaxy.hdf5 and outputs to Plots/test/.
+    """
+    import h5py
+    import matplotlib
+    matplotlib.use("agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from generate_test_galaxy import create_test_galaxy_snapshot
+
+    params_path = Path(__file__).resolve().parent / "Sim_params.txt"
+    plot_flags = read_plot_flags(params_path)
+
+    # Generate test galaxy if needed
+    test_data_dir = Path(__file__).resolve().parent / "sim_data"
+    test_snap_path = test_data_dir / "test_galaxy.hdf5"
+
+    if not test_snap_path.exists():
+        print(f"Generating test galaxy snapshot at {test_snap_path}...")
+        create_test_galaxy_snapshot(
+            output_dir=str(test_data_dir), filename="test_galaxy.hdf5"
+        )
+    else:
+        print(f"Using existing test galaxy snapshot at {test_snap_path}")
+
+    output_dir = os.path.join(plot_dir, "test")
+    os.makedirs(output_dir, exist_ok=True)
+
+    results = {}
+
+    # Helper to create 2D density plots directly from test snapshot
+    def _plot_test_density(parttype: int, label: str, filename: str):
+        with h5py.File(test_snap_path, "r") as f:
+            pos_key = f"PartType{parttype}/Coordinates"
+            mass_key = f"PartType{parttype}/Masses"
+
+            if pos_key not in f or mass_key not in f:
+                print(f"Warning: {pos_key} not found in test snapshot")
+                return None
+
+            positions = f[pos_key][:]
+            masses = f[mass_key][:]
+
+        # Create 2D histogram in x-y plane
+        nbins = 512
+        H, xedges, yedges = np.histogram2d(
+            positions[:, 0], positions[:, 1], bins=(nbins, nbins), weights=masses
+        )
+
+        fig, ax = plt.subplots(figsize=(6, 6))
+        extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+        im = ax.imshow(
+            H.T,
+            origin="lower",
+            extent=extent,
+            aspect="equal",
+            cmap="viridis",
+            norm="log",
+        )
+
+        ax.set_xlabel("x (code units)")
+        ax.set_ylabel("y (code units)")
+        ax.set_title(label)
+
+        cbar = fig.colorbar(im, ax=ax, shrink=0.7)
+        cbar.set_label("Mass")
+
+        fig.tight_layout()
+
+        output_path = os.path.join(output_dir, filename)
+        fig.savefig(output_path, bbox_inches="tight")
+        plt.close(fig)
+
+        return output_path
+
+    # Generate density plots based on flags
+    if plot_flags.get("DM_density", 0):
+        results["dm_density_map"] = _plot_test_density(
+            1, "DM density (test)", "test_dm_density.png"
+        )
+
+    if plot_flags.get("gas_density", 0):
+        results["gas_density_map"] = _plot_test_density(
+            0, "Gas density (test)", "test_gas_density.png"
+        )
+
+    if plot_flags.get("star_density", 0):
+        results["stellar_density_map"] = _plot_test_density(
+            4, "Stellar density (test)", "test_stellar_density.png"
+        )
+
+    return results
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run all diagnostic plots for a given simulation snapshot."
+        description="Run diagnostic plots for simulation or test data.\n"
+        "Usage: python run_all_diagnostics.py test\n"
+        "       python run_all_diagnostics.py BOX_NUM SNAP_NUM",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("box_num", type=int, help="Box number for the simulation.")
-    parser.add_argument("snapnum", type=int, help="Snapshot number to analyze.")
-    return parser.parse_args()
+    parser.add_argument(
+        "first_arg",
+        help="Either 'test' for toy galaxy, or BOX_NUM for production data.",
+    )
+    parser.add_argument(
+        "second_arg",
+        nargs="?",
+        help="SNAP_NUM for production data (omit for test mode).",
+    )
+
+    args = parser.parse_args()
+
+    # Determine mode based on arguments
+    if args.first_arg == "test":
+        args.mode = "test"
+        args.box_num = None
+        args.snapnum = None
+        if args.second_arg is not None:
+            parser.error("Test mode takes no additional arguments.")
+    else:
+        try:
+            args.box_num = int(args.first_arg)
+            if args.second_arg is None:
+                parser.error(
+                    "Production mode requires both BOX_NUM and SNAP_NUM.\n"
+                    "Usage: python run_all_diagnostics.py BOX_NUM SNAP_NUM"
+                )
+            args.snapnum = int(args.second_arg)
+            args.mode = "production"
+        except ValueError:
+            parser.error(
+                f"Invalid argument '{args.first_arg}'. "
+                "Use 'test' or provide BOX_NUM SNAP_NUM."
+            )
+
+    return args
 
 
 def main() -> None:
     args = _parse_args()
-    results = run_all_diagnostics(
-        box_num=args.box_num,
-        snapnum=args.snapnum,
-    )
+
+    if args.mode == "test":
+        results = run_test_diagnostics()
+    elif args.mode == "production":
+        results = run_all_diagnostics(
+            box_num=args.box_num,
+            snapnum=args.snapnum,
+        )
 
     # Print a short summary of generated outputs
     for key, value in results.items():
