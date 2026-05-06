@@ -35,6 +35,24 @@ def _normalize_path(path: str) -> str:
     return path + os.sep
 
 
+def _normalize_run_dir(run_dir):
+    if isinstance(run_dir, int):
+        return f"run_{run_dir}"
+    if run_dir is None:
+        raise ValueError("run_dir must be provided")
+    run_dir = str(run_dir).strip()
+    return run_dir.rstrip(os.sep)
+
+
+def _run_index(run_dir):
+    if isinstance(run_dir, int):
+        return run_dir
+    run_dir = str(run_dir).strip()
+    if run_dir.startswith("run_"):
+        run_dir = run_dir.split("run_", 1)[1]
+    return int(run_dir)
+
+
 _sim_params = _read_sim_params()
 snapshot_base = _normalize_path(_sim_params.get("snapshot_base", ""))
 fof_sub_base = _normalize_path(_sim_params.get("fof_sub_base", ""))
@@ -88,7 +106,7 @@ def load_particles(box_num, parttype, fields, redshift=None,
     Load particle fields from AREPO or GIZMO snapshots
     using raw HDF5 access.
     """
-    path = os.path.join(snapshot_base, f"run_{box_num}")
+    path = os.path.join(snapshot_base, _normalize_run_dir(box_num))
 
     if isinstance(parttype, str):
         try:
@@ -157,7 +175,7 @@ def identify_target_halo(box_num,snapnum):
     min_mass = Mtarget - 0.1 * 2 # Doubling tolerance to try to catch valid halo
     max_mass = Mtarget + 0.1 * 2
     
-    path = os.path.join(snapshot_base, f'run_{box_num}')
+    path = os.path.join(snapshot_base, _normalize_run_dir(box_num))
     with h5py.File(os.path.join(path, f"snap_{snapnum:03d}.hdf5"), "r") as f:
 
         Header = f['Header']
@@ -247,7 +265,7 @@ def compute_rotation_curve_and_save(
     halo_length = loadHalos(box_num, snapnum, 'GroupLenType')
     halo_pos = loadHalos(box_num, snapnum, 'GroupPos')[target]
 
-    snap_path = os.path.join(snapshot_base, f'run_{box_num}')
+    snap_path = os.path.join(snapshot_base, _normalize_run_dir(box_num))
     snapfile = os.path.join(snap_path, f"snap_{snapnum:03d}.hdf5")
     with h5py.File(snapfile, "r") as f:
         header = f["Header"]
@@ -369,7 +387,8 @@ def compute_rotation_curve_and_save(
     vrot_stars_only = np.sqrt(G * cum_mass_stars_only_kg / rs_m) / 1000.0
 
     # Store original rs in kpc for plotting convenience
-    outpath = os.path.join(output_dir, f"Run_{box_num}_rot.hdf5")
+    run_name = _normalize_run_dir(box_num).replace(os.sep, "_")
+    outpath = os.path.join(output_dir, f"Run_{run_name}_rot.hdf5")
     with h5py.File(outpath, "w") as f_out:
         f_out.create_dataset("rs", data=rs)
         f_out.create_dataset("cum_mass", data=cum_mass)
@@ -415,7 +434,7 @@ def gcPath(basePath, snapNum):
 def loadHalos(box_num, snapNum, fields=None):
     """ Load all halo information from the entire group catalog for one snapshot
        (optionally restrict to a subset given by fields). """
-    basePath = os.path.join(fof_sub_base, f'run_{box_num}') + os.sep
+    basePath = os.path.join(fof_sub_base, _normalize_run_dir(box_num)) + os.sep
     return loadObjects(basePath, snapNum, "Group", "groups", fields)
 
 def loadObjects(basePath, snapNum, gName, nName, fields):

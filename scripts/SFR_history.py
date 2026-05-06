@@ -9,7 +9,7 @@ import numpy as np
 from astropy.cosmology import FlatLambdaCDM
 import astropy.units as u
 
-from .load_sim_data import code, loadHalos, snapshot_base
+from .load_sim_data import code, loadHalos, snapshot_base, _normalize_run_dir
 
 
 def _find_snapshot_file(box_num: int, snapnum: int) -> str | None:
@@ -18,7 +18,7 @@ def _find_snapshot_file(box_num: int, snapnum: int) -> str | None:
     snapdir_XXX/snap_XXX.hdf5 and snap_XXX.hdf5 in sim_path.
     Returns None if no file is found.
     """
-    path = os.path.join(snapshot_base, f'run_{box_num}')
+    path = os.path.join(snapshot_base, _normalize_run_dir(box_num))
     snapdir = os.path.join(path, f"snapdir_{snapnum:03d}")
     if os.path.isdir(snapdir):
         snapfile = os.path.join(snapdir, f"snap_{snapnum:03d}.hdf5")

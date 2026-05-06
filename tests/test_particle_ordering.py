@@ -8,7 +8,7 @@ ordering but only on particle positions and masses.
 
 Usage:
     python test_particle_ordering.py test [NBINS]
-    python test_particle_ordering.py BOX_NUM SNAP_NUM [NBINS]
+    python test_particle_ordering.py DIRECTORY_NAME SNAP_NUM [NBINS]
 """
 
 import argparse
@@ -22,7 +22,7 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from generate_test_galaxy import create_test_galaxy_snapshot
+from tests.generate_test_galaxy import create_test_galaxy_snapshot
 
 
 def create_histogram(positions: np.ndarray, masses: np.ndarray, nbins: int = 256) -> tuple:
@@ -252,8 +252,8 @@ def run_ordering_tests(
 
     # Determine output directory
     if box_num is not None:
-        output_dir = os.path.join("Plots", f"run_{box_num}")
-        prefix = f"run_{box_num}_snap{snapnum:03d}_"
+        output_dir = os.path.join("Plots", str(box_num))
+        prefix = f"{box_num}_snap{snapnum:03d}_"
     else:
         output_dir = os.path.join("Plots", "test")
         prefix = ""
@@ -296,7 +296,7 @@ def _parse_args():
     parser = argparse.ArgumentParser(
         description="Test particle ordering independence in 2D histogram binning.\n"
         "Usage: python test_particle_ordering.py test [NBINS]\n"
-        "       python test_particle_ordering.py BOX_NUM SNAP_NUM [NBINS]",
+        "       python test_particle_ordering.py DIRECTORY_NAME SNAP_NUM [NBINS]",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
@@ -329,20 +329,17 @@ def _parse_args():
             except ValueError:
                 parser.error("For test mode, provide optional NBINS as integer.")
     else:
-        try:
-            args.box_num = int(args.first_arg)
-            if args.second_arg is None:
-                parser.error(
-                    "Production mode requires both BOX_NUM and SNAP_NUM.\n"
-                    "Usage: python test_particle_ordering.py BOX_NUM SNAP_NUM [NBINS]"
-                )
-            args.snapnum = int(args.second_arg)
-            args.mode = "production"
-        except ValueError:
+        args.box_num = args.first_arg
+        if args.second_arg is None:
             parser.error(
-                f"Invalid argument '{args.first_arg}'. "
-                "Use 'test' or provide BOX_NUM SNAP_NUM."
+                "Production mode requires both DIRECTORY_NAME and SNAP_NUM.\n"
+                "Usage: python test_particle_ordering.py DIRECTORY_NAME SNAP_NUM [NBINS]"
             )
+        try:
+            args.snapnum = int(args.second_arg)
+        except ValueError:
+            parser.error("SNAP_NUM must be an integer.")
+        args.mode = "production"
 
     return args
 
@@ -373,10 +370,10 @@ def main():
 
     else:
         # Production mode
-        print(f"\nLoading snapshot data for run_{args.box_num}, snapshot {args.snapnum}...")
+        print(f"\nLoading snapshot data for {args.first_arg}, snapshot {args.snapnum}...")
 
-        from load_sim_data import snapshot_base
-        snap_path = os.path.join(snapshot_base, f"run_{args.box_num}", f"snap_{args.snapnum:03d}.hdf5")
+        from scripts.load_sim_data import snapshot_base
+        snap_path = os.path.join(snapshot_base, args.first_arg, f"snap_{args.snapnum:03d}.hdf5")
 
         if not os.path.exists(snap_path):
             print(f"Error: Snapshot file not found at {snap_path}")
@@ -385,7 +382,7 @@ def main():
         results = run_ordering_tests(
             snap_path,
             nbins=args.nbins,
-            box_num=args.box_num,
+            box_num=args.first_arg,
             snapnum=args.snapnum,
         )
 

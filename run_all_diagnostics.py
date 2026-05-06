@@ -39,20 +39,20 @@ def read_plot_flags(params_path: Path) -> dict:
     return flags
 
 
-def run_all_diagnostics(box_num: int, snapnum: int):
+def run_all_diagnostics(directory_name: str, snapnum: int):
     """
-    Run all diagnostic plots for a given snapshot.
+    Run all diagnostic plots for a given snapshot directory.
     Plot production is controlled by flags in Sim_params.txt.
     """
-    from load_sim_data import identify_target_halo
+    from scripts.load_sim_data import identify_target_halo
 
     params_path = Path(__file__).resolve().parent / "Sim_params.txt"
     plot_flags = read_plot_flags(params_path)
 
     # Identify target halo once
-    target, min_mass, max_mass = identify_target_halo(box_num, snapnum)
+    target, min_mass, max_mass = identify_target_halo(directory_name, snapnum)
 
-    output_dir = os.path.join(plot_dir, f"run_{box_num}")
+    output_dir = os.path.join(plot_dir, directory_name)
     os.makedirs(output_dir, exist_ok=True)
 
     results = {}
@@ -107,24 +107,24 @@ def run_all_diagnostics(box_num: int, snapnum: int):
 
     if plot_flags.get("DM_density", 0):
         results["dm_density_map"] = _component_density(
-            "dm", f"DM density (run {box_num})", f"FIRE2_MW_run{box_num}_dm_density.png"
+            "dm", f"DM density ({directory_name})", f"FIRE2_MW_{directory_name}_dm_density.png"
         )
 
     if plot_flags.get("gas_density", 0):
         results["gas_density_map"] = _component_density(
-            "gas", f"Gas density (run {box_num})", f"FIRE2_MW_run{box_num}_gas_density.png"
+            "gas", f"Gas density ({directory_name})", f"FIRE2_MW_{directory_name}_gas_density.png"
         )
 
     if plot_flags.get("star_density", 0):
         results["stellar_density_map"] = _component_density(
             "stars",
-            f"Stellar density (run {box_num})",
-            f"FIRE2_MW_run{box_num}_stellar_density.png",
+            f"Stellar density ({directory_name})",
+            f"FIRE2_MW_{directory_name}_stellar_density.png",
         )
 
     if plot_flags.get("SFR_history", 0):
         results["sfr_history_plot"] = plot_sfr_history(
-            box_num=box_num,
+            box_num=directory_name,
             max_snapnum=snapnum,
             target=target,
             output_dir=output_dir,
@@ -132,7 +132,7 @@ def run_all_diagnostics(box_num: int, snapnum: int):
 
     if plot_flags.get("Ken_Schmidt", 0):
         results["kennicutt_schmidt_plot"] = plot_kennicutt_schmidt(
-            box_num=box_num,
+            box_num=directory_name,
             snapnum=snapnum,
             target=target,
             output_dir=output_dir,
@@ -151,7 +151,7 @@ def run_test_diagnostics():
     matplotlib.use("agg")
     import matplotlib.pyplot as plt
     import numpy as np
-    from generate_test_galaxy import create_test_galaxy_snapshot
+    from tests.generate_test_galaxy import create_test_galaxy_snapshot
 
     params_path = Path(__file__).resolve().parent / "Sim_params.txt"
     plot_flags = read_plot_flags(params_path)
@@ -241,12 +241,12 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run diagnostic plots for simulation or test data.\n"
         "Usage: python run_all_diagnostics.py test\n"
-        "       python run_all_diagnostics.py BOX_NUM SNAP_NUM",
+        "       python run_all_diagnostics.py DIRECTORY_NAME SNAP_NUM",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "first_arg",
-        help="Either 'test' for toy galaxy, or BOX_NUM for production data.",
+        help="Either 'test' for toy galaxy, or DIRECTORY_NAME for production data.",
     )
     parser.add_argument(
         "second_arg",
@@ -259,25 +259,22 @@ def _parse_args() -> argparse.Namespace:
     # Determine mode based on arguments
     if args.first_arg == "test":
         args.mode = "test"
-        args.box_num = None
+        args.directory_name = None
         args.snapnum = None
         if args.second_arg is not None:
             parser.error("Test mode takes no additional arguments.")
     else:
-        try:
-            args.box_num = int(args.first_arg)
-            if args.second_arg is None:
-                parser.error(
-                    "Production mode requires both BOX_NUM and SNAP_NUM.\n"
-                    "Usage: python run_all_diagnostics.py BOX_NUM SNAP_NUM"
-                )
-            args.snapnum = int(args.second_arg)
-            args.mode = "production"
-        except ValueError:
+        args.directory_name = args.first_arg
+        if args.second_arg is None:
             parser.error(
-                f"Invalid argument '{args.first_arg}'. "
-                "Use 'test' or provide BOX_NUM SNAP_NUM."
+                "Production mode requires both DIRECTORY_NAME and SNAP_NUM.\n"
+                "Usage: python run_all_diagnostics.py DIRECTORY_NAME SNAP_NUM"
             )
+        try:
+            args.snapnum = int(args.second_arg)
+        except ValueError:
+            parser.error("SNAP_NUM must be an integer.")
+        args.mode = "production"
 
     return args
 
@@ -289,7 +286,7 @@ def main() -> None:
         results = run_test_diagnostics()
     elif args.mode == "production":
         results = run_all_diagnostics(
-            box_num=args.box_num,
+            directory_name=args.directory_name,
             snapnum=args.snapnum,
         )
 
