@@ -3,6 +3,6 @@ Produce various diagnostic plots for galaxies produced via hydrodynamic simulati
 
 The core functionality of this package is contained in the run_all_diagnostics.py file, which is the main file you will need to run to produce your diagnostic plots. This file calls all of the other files, most of which are not meant to be run by themselves. 
 
-Before running anything, you will need to configure the Sim_params.txt file to match your setup. This is mainly just setting paths as well as which plots you wish to make. Once this has been configured, you simply need to run "python run_all_diagnostics.py [run_num] [snap_num]" from the command line to produce all the plots you've chosen for that simulation. 
+Before running anything, you will need to configure the Sim_params.txt file to match your setup. This is mainly just setting paths as well as which plots you wish to make. Once this has been configured, you simply need to run "python run_all_diagnostics.py [box_num] [snap_num]" from the command line to produce all the plots you've chosen for that simulation. Alternatively, see submit_script.sh for an example slurm script which will produce diagnostic plots for many simulations in an array.
 
 To verify the funcitonality of this package, you can produce a toy Milky Way galaxy with generate_test_galaxy.py as well as testing binning mass conservation and particle ordering with test_mass_conservation.py and test_particle_ordering respectively. See the Wiki for more info on how to use these.
