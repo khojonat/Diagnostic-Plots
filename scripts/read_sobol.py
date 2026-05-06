@@ -16,11 +16,11 @@ def _parse_run_index(run):
     return int(run)
 
 
-def read_sobol(run):
+def read_sobol(run, sobol_path):
     run_idx = _parse_run_index(run)
 
     # Change basePath as needed
-    basePath = f'/project/torrey-group/jkho/FIRE_Mass_varied/hyperparam_files/sobol_params.txt'
+    basePath = os.path.join(sobol_path, 'sobol_params.txt')
 
     sobol = np.loadtxt(basePath, skiprows=1)
 

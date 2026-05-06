@@ -168,9 +168,14 @@ def load_particles(box_num, parttype, fields, redshift=None,
 def identify_target_halo(box_num,snapnum):
     ''' Identifies a target halo of a given mass '''
     
-    sobol = read_sobol(box_num)
-    Mtarget = sobol[0]
-
+    sobol_path = _sim_params.get("sobol_path", "").strip()
+    
+    if sobol_path and sobol_path != "0":
+        sobol = read_sobol(box_num, sobol_path)
+        Mtarget = sobol[0]
+    else:
+        Mtarget = float(_sim_params.get("target_log_mass", 11.5))
+    
     # --- Select halos in desired mass range ---
     min_mass = Mtarget - 0.1 * 2 # Doubling tolerance to try to catch valid halo
     max_mass = Mtarget + 0.1 * 2
@@ -204,7 +209,7 @@ def identify_target_halo(box_num,snapnum):
     
         # If they're all contaminated, just take the least contaminated halo in the mass range
         if i == len(valid) - 1:
-            print(f'Run {box_num}: All valid halos are contaminated')
+            print(f'{_normalize_run_dir(box_num)}: All valid halos are contaminated')
             target = valid[np.argmin(all_contam)]
             break
             

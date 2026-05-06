@@ -8,6 +8,13 @@ plot_dir       =  Plots/
 # What code was used to produce the sim?
 code           =  gizmo   # arepo
 
+# Sobol sequence configuration
+# Set to path containing sobol_params.txt, or 0 to disable sobol and use target_log_mass
+sobol_path     =  /project/torrey-group/jkho/FIRE_Mass_varied/hyperparam_files/
+
+# Target halo log mass (only used if sobol_path = 0)
+target_log_mass = 11.5
+
 # Set which plots to make; 1 to make or 0 to skip
 DM_density     = 1
 gas_density    = 1
