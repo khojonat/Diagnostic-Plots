@@ -5,13 +5,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from Stellar_Halo_mass import plot_stellar_halo_mass
-from Tully_Fisher import plot_tully_fisher
-from rotation_curve import plot_rotation_curve
-from density_2d import plot_2d_hist
-from SFR_history import plot_sfr_history
-from Kennicutt_Schmidt import plot_kennicutt_schmidt
-from load_sim_data import compute_rotation_curve_and_save, plot_dir
+from scripts.Stellar_Halo_mass import plot_stellar_halo_mass
+from scripts.Tully_Fisher import plot_tully_fisher
+from scripts.rotation_curve import plot_rotation_curve
+from scripts.density_2d import plot_2d_hist
+from scripts.SFR_history import plot_sfr_history
+from scripts.Kennicutt_Schmidt import plot_kennicutt_schmidt
+from scripts.load_sim_data import compute_rotation_curve_and_save, plot_dir
 
 
 def read_plot_flags(params_path: Path) -> dict:
