@@ -4,7 +4,7 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .load_sim_data import load_particles, split_paired_array, identify_target_halo, loadHalos
+from .helpers import load_particles, split_paired_array, identify_target_halo, loadHalos
 
 # Literature comparison data 
 Zacharegkas_etal = np.array([
@@ -81,7 +81,7 @@ def _get_hubble_param(box_num: int, snapnum: int) -> float:
     """
     Read HubbleParam from the snapshot header.
     """
-    from .load_sim_data import snapshot_base, _normalize_run_dir
+    from .helpers import snapshot_base, _normalize_run_dir
     snapfile = os.path.join(snapshot_base, _normalize_run_dir(box_num), f'snap_{snapnum:03d}.hdf5')
     with h5py.File(snapfile, "r") as f:
         return float(f["Header"].attrs["HubbleParam"])

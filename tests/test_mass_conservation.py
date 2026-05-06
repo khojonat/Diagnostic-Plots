@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from tests.generate_test_galaxy import create_test_galaxy_snapshot
-from scripts.load_sim_data import load_particles
+from scripts.helpers import load_particles
 
 
 def test_mass_conservation(snap_path: str, parttype: int, nbins_list: list = None) -> dict:
@@ -320,7 +320,7 @@ def main():
         print(f"\nLoading snapshot data for {args.first_arg}, snapshot {args.snapnum}...")
         
         # For production data, we load directly from the snapshot HDF5 files
-        from scripts.load_sim_data import snapshot_base
+        from scripts.helpers import snapshot_base
         snap_path = os.path.join(snapshot_base, args.first_arg, f"snap_{args.snapnum:03d}.hdf5")
         
         if not os.path.exists(snap_path):

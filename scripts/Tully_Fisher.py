@@ -7,7 +7,7 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .load_sim_data import split_paired_array
+from .helpers import split_paired_array
 
 
 # Literature data (kept as in original script)

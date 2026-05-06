@@ -5,7 +5,7 @@ import matplotlib
 matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from .load_sim_data import load_particles, identify_target_halo, loadHalos
+from .helpers import load_particles, identify_target_halo, loadHalos
 
 def plot_2d_hist(
     box_num,

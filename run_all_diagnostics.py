@@ -11,7 +11,7 @@ from scripts.rotation_curve import plot_rotation_curve
 from scripts.density_2d import plot_2d_hist
 from scripts.SFR_history import plot_sfr_history
 from scripts.Kennicutt_Schmidt import plot_kennicutt_schmidt
-from scripts.load_sim_data import compute_rotation_curve_and_save, plot_dir
+from scripts.helpers import compute_rotation_curve_and_save, plot_dir
 
 
 def read_plot_flags(params_path: Path) -> dict:
@@ -44,7 +44,7 @@ def run_all_diagnostics(directory_name: str, snapnum: int):
     Run all diagnostic plots for a given snapshot directory.
     Plot production is controlled by flags in Sim_params.txt.
     """
-    from scripts.load_sim_data import identify_target_halo
+    from scripts.helpers import identify_target_halo
 
     params_path = Path(__file__).resolve().parent / "Sim_params.txt"
     plot_flags = read_plot_flags(params_path)

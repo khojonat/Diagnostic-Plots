@@ -9,7 +9,7 @@ import numpy as np
 from astropy.cosmology import FlatLambdaCDM
 import astropy.units as u
 
-from .load_sim_data import code, loadHalos, snapshot_base, _normalize_run_dir
+from .helpers import code, loadHalos, snapshot_base, _normalize_run_dir
 
 
 def _find_snapshot_file(box_num: int, snapnum: int) -> str | None:

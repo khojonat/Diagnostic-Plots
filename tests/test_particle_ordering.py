@@ -372,7 +372,7 @@ def main():
         # Production mode
         print(f"\nLoading snapshot data for {args.first_arg}, snapshot {args.snapnum}...")
 
-        from scripts.load_sim_data import snapshot_base
+        from scripts.helpers import snapshot_base
         snap_path = os.path.join(snapshot_base, args.first_arg, f"snap_{args.snapnum:03d}.hdf5")
 
         if not os.path.exists(snap_path):

@@ -9,7 +9,7 @@ import numpy as np
 from astropy.cosmology import FlatLambdaCDM
 import astropy.units as u
 
-from .load_sim_data import load_particles, identify_target_halo, loadHalos, split_paired_array, code
+from .helpers import load_particles, identify_target_halo, loadHalos, split_paired_array, code
 from .SFR_history import _find_snapshot_file
 
 # Literature comparison
