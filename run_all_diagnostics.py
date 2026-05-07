@@ -59,7 +59,7 @@ def run_all_diagnostics(data_dir: str, snapnum: int):
 
     if plot_flags.get("stellar_halo", 0):
         results["stellar_halo_mass_plot"] = plot_stellar_halo_mass(
-            box_num=data_dir,
+            data_dir=data_dir,
             snapnum=snapnum,
             target=target,
             min_mass=min_mass,
@@ -71,7 +71,7 @@ def run_all_diagnostics(data_dir: str, snapnum: int):
     rot_curve_file = None
     if rot_needed:
         rot_curve_file = compute_rotation_curve_and_save(
-            box_num=data_dir,
+            data_dir=data_dir,
             snapnum=snapnum,
             target=target,
             output_dir=os.path.join(output_dir, "sim_data"),
@@ -81,21 +81,21 @@ def run_all_diagnostics(data_dir: str, snapnum: int):
         if plot_flags.get("rot_curve", 0):
             results["rotation_curve_plot"] = plot_rotation_curve(
                 rot_curve_file=rot_curve_file,
-                box_num=data_dir,
+                data_dir=data_dir,
                 output_dir=output_dir,
             )
 
         if plot_flags.get("Tully_Fisher", 0):
             results["tully_fisher_plot"] = plot_tully_fisher(
                 rot_curve_file=rot_curve_file,
-                box_num=data_dir,
+                data_dir=data_dir,
                 output_dir=output_dir,
             )
 
     def _component_density(parttype_str: str, label: str, filename: str):
         output_path = os.path.join(output_dir, filename)
         return plot_2d_hist(
-            box_num=data_dir,
+            data_dir=data_dir,
             snapnum=snapnum,
             parttype={"dm": 1, "gas": 0, "stars": 4}[parttype_str],
             target=target,
@@ -124,7 +124,7 @@ def run_all_diagnostics(data_dir: str, snapnum: int):
 
     if plot_flags.get("SFR_history", 0):
         results["sfr_history_plot"] = plot_sfr_history(
-            box_num=data_dir,
+            data_dir=data_dir,
             max_snapnum=snapnum,
             target=target,
             output_dir=output_dir,
@@ -132,7 +132,7 @@ def run_all_diagnostics(data_dir: str, snapnum: int):
 
     if plot_flags.get("Ken_Schmidt", 0):
         results["kennicutt_schmidt_plot"] = plot_kennicutt_schmidt(
-            box_num=data_dir,
+            data_dir=data_dir,
             snapnum=snapnum,
             target=target,
             output_dir=output_dir,
