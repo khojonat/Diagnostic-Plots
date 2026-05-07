@@ -1,5 +1,5 @@
 # Diagnostic-Plots
-Produce various diagnostic plots for galaxies produced via hydrodynamic simulations to test the validity of the run. This code has been developed to be compatible with Arepo and Gizmo simulation output, but can in principle be extended to others. Currently, many of the diagnostic plots require that the FOF halo finder has been run on your snapshot data.
+Produce various diagnostic plots for galaxies produced via hydrodynamic simulations to test the validity of the run. This code has been developed to be compatible with Arepo and Gizmo simulation output, but can in principle be extended to others. Currently, many of the diagnostic plots require that the FOF halo finder has been run on your snapshot data. As a note, the purpose of this package is not to produce the prettiest looking plots. Rather, these are quick and easy visualizations meant to give you a sense for what's going on in your simulation.
 
 The core functionality of this package is contained in the run_all_diagnostics.py file, which is the main file you will need to run to produce your diagnostic plots. This file calls all of the other files, most of which are not meant to be run by themselves. 
 
