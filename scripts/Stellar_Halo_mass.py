@@ -90,7 +90,8 @@ def _get_hubble_param(data_dir: str, snapnum: int) -> float:
 def _compute_total_masses(data_dir: str,
                           snapnum: int = None,
                           target: int = None,
-                          verbose: bool = True):
+                          verbose: bool = True,
+                          particle_data: dict | None = None):
     """
     Use load_particles to get stellar and dark matter masses and
     return total masses in physical units [Msun].
@@ -100,10 +101,15 @@ def _compute_total_masses(data_dir: str,
     if target is None:
         raise ValueError("target must be provided")
 
+    if particle_data is not None:
+        h = float(particle_data["header"].get("HubbleParam", 1.0))
+        star_masses = particle_data["particles"][4]["Masses"] * 1e10 / h
+        dm_masses = particle_data["particles"][1]["Masses"] * 1e10 / h
+        return np.sum(star_masses), np.sum(dm_masses)
+
     # Identify target halo
     # target = identify_target_halo(data_dir, snapnum)
     halo_length = loadHalos(data_dir, snapnum, 'GroupLenType')
-
     # Load particle masses in code units (1e10 Msun / h for AREPO/Illustris)
     star_data = load_particles(data_dir, "stars", ["Masses"],
                                snapnum=snapnum,
@@ -136,7 +142,9 @@ def plot_stellar_halo_mass(data_dir: str,
                            min_mass: float,
                            max_mass: float,
                            output_dir: str = "Plots",
-                           verbose: bool = True):
+                           verbose: bool = True,
+                           particle_data: dict | None = None,
+                           filename_suffix: str = ""):
     """
     Make the stellar–halo mass plot using simulation data loaded
     via helpers.py plus the literature comparison arrays.
@@ -155,7 +163,11 @@ def plot_stellar_halo_mass(data_dir: str,
         If True, prints a short message with the computed masses.
     """
     total_stellar, total_dm = _compute_total_masses(
-        data_dir, snapnum=snapnum, target=target, verbose=verbose
+        data_dir,
+        snapnum=snapnum,
+        target=target,
+        verbose=verbose,
+        particle_data=particle_data,
     )
 
     if verbose:
@@ -188,7 +200,7 @@ def plot_stellar_halo_mass(data_dir: str,
 
     os.makedirs(output_dir, exist_ok=True)
     tag = f"_{data_dir}" if data_dir is not None else ""
-    outname = os.path.join(output_dir, f"Halo_Stellar_mass{tag}.png")
+    outname = os.path.join(output_dir, f"Halo_Stellar_mass{tag}{filename_suffix}.png")
     fig.savefig(outname, bbox_inches="tight")
     plt.close(fig)
 

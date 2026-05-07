@@ -238,6 +238,88 @@ def load_particles(data_dir, parttype, fields, redshift=None,
     return data
 
 
+def snapshot_file_path(data_dir: str, snapnum: int) -> str:
+    """
+    Locate a snapshot file for a run, trying both snapdir_XXX/snap_XXX.hdf5
+    and snap_XXX.hdf5 directly under the run directory.
+    """
+    path = os.path.join(snapshot_base, _normalize_run_dir(data_dir))
+    snapdir = os.path.join(path, f"snapdir_{snapnum:03d}")
+    if os.path.isdir(snapdir):
+        snapfile = os.path.join(snapdir, f"snap_{snapnum:03d}.hdf5")
+        if os.path.exists(snapfile):
+            return snapfile
+
+    snapfile = os.path.join(path, f"snap_{snapnum:03d}.hdf5")
+    if os.path.exists(snapfile):
+        return snapfile
+
+    raise FileNotFoundError(f"Snapshot file not found for {data_dir}, snap {snapnum}")
+
+
+def halo_particle_bounds(halo_length: np.ndarray, target: int, parttype: int):
+    """Return start/end indices for one halo and particle type."""
+    start = int(np.sum(halo_length[:target, parttype]))
+    end = start + int(halo_length[target, parttype])
+    return start, end
+
+
+def load_target_halo_particle_data(
+    data_dir: str,
+    snapnum: int,
+    target: int,
+    parttypes=(0, 1, 2, 4),
+    fields_by_parttype: dict | None = None,
+    shuffle: bool = False,
+    seed: int = 42,
+) -> dict:
+    """
+    Read target-halo particle data into memory.
+
+    The snapshot and group catalog are opened read-only. If ``shuffle`` is True,
+    each particle type is independently permuted in memory after all requested
+    fields for that type have been sliced to the target halo.
+    """
+    halo_length = loadHalos(data_dir, snapnum, "GroupLenType")
+    halo_pos = loadHalos(data_dir, snapnum, "GroupPos")[target]
+    rng = np.random.default_rng(seed)
+    particles = {}
+
+    with h5py.File(snapshot_file_path(data_dir, snapnum), "r") as f:
+        header = dict(f["Header"].attrs.items())
+
+        for parttype in parttypes:
+            group = f.get(f"PartType{parttype}")
+            if group is None:
+                continue
+
+            start, end = halo_particle_bounds(halo_length, target, parttype)
+            if end <= start:
+                particles[parttype] = {}
+                continue
+
+            requested = fields_by_parttype.get(parttype) if fields_by_parttype else None
+            fields = requested if requested is not None else list(group.keys())
+            order = rng.permutation(end - start) if shuffle else slice(None)
+            particles[parttype] = {}
+
+            for field in fields:
+                if field in group:
+                    dataset = group[field]
+                    if dataset.shape and dataset.shape[0] >= end:
+                        particles[parttype][field] = dataset[start:end][order]
+
+    return {
+        "data_dir": data_dir,
+        "snapnum": snapnum,
+        "target": target,
+        "header": header,
+        "halo_length": halo_length,
+        "halo_pos": halo_pos,
+        "particles": particles,
+    }
+
+
 def identify_target_halo(data_dir,snapnum):
     ''' Identifies a target halo of a given mass '''
     
@@ -327,6 +409,8 @@ def compute_rotation_curve_and_save(
     snapnum: int,
     target: int,
     output_dir: str = "sim_data",
+    particle_data: dict | None = None,
+    filename_suffix: str = "",
 ) -> str:
     """
     Load gas, dark matter, and stellar particles for a given snapshot,
@@ -338,72 +422,59 @@ def compute_rotation_curve_and_save(
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    # Identify target halo
-    # target = identify_target_halo(data_dir, snapnum)
-    halo_length = loadHalos(data_dir, snapnum, 'GroupLenType')
-    halo_pos = loadHalos(data_dir, snapnum, 'GroupPos')[target]
+    UnitLength = u.kpc # header.attrs["UnitLength_In_CGS"] * u.cm
+    UnitMass = 1e10 * u.Msun # header.attrs["UnitMass_In_CGS"] * u.g
 
-    snap_path = os.path.join(snapshot_base, _normalize_run_dir(data_dir))
-    snapfile = os.path.join(snap_path, f"snap_{snapnum:03d}.hdf5")
-    with h5py.File(snapfile, "r") as f:
-        header = f["Header"]
-        boxsize = header.attrs["BoxSize"]
-        h = header.attrs["HubbleParam"]
-        UnitLength = u.kpc # header.attrs["UnitLength_In_CGS"] * u.cm
-        UnitMass = 1e10 * u.Msun # header.attrs["UnitMass_In_CGS"] * u.g
-        # UnitVelocity = # header.attrs["UnitVelocity_In_CGS"] * u.cm / u.s
+    if particle_data is not None:
+        halo_pos = particle_data["halo_pos"]
+        boxsize = particle_data["header"]["BoxSize"]
+        gas_mass = np.array(particle_data["particles"][0]["Masses"] * UnitMass.to(u.M_sun))
+        gas_pos = np.array(particle_data["particles"][0]["Coordinates"] * UnitLength.to(u.kpc))
+        dm_mass = np.array(particle_data["particles"][1]["Masses"] * UnitMass.to(u.M_sun))
+        dm_pos = np.array(particle_data["particles"][1]["Coordinates"] * UnitLength.to(u.kpc))
+        dm2_mass = np.array(particle_data["particles"][2]["Masses"] * UnitMass.to(u.M_sun))
+        dm2_pos = np.array(particle_data["particles"][2]["Coordinates"] * UnitLength.to(u.kpc))
+        star_mass = np.array(particle_data["particles"][4]["Masses"] * UnitMass.to(u.M_sun))
+        star_pos = np.array(particle_data["particles"][4]["Coordinates"] * UnitLength.to(u.kpc))
 
-        boxsize_kpc = boxsize * UnitLength.to(u.kpc)
+    else:
+        # Identify target halo
+        # target = identify_target_halo(data_dir, snapnum)
+        halo_length = loadHalos(data_dir, snapnum, 'GroupLenType')
+        halo_pos = loadHalos(data_dir, snapnum, 'GroupPos')[target]
 
-        # Load all particles
-        gas_mass_all = np.array(
-            f["PartType0"]["Masses"][:] * UnitMass.to(u.M_sun)
-        )
-        gas_pos_all = np.array(
-            f["PartType0"]["Coordinates"][:] * UnitLength.to(u.kpc)
-        )
+        with h5py.File(snapshot_file_path(data_dir, snapnum), "r") as f:
+            header = f["Header"]
+            boxsize = header.attrs["BoxSize"]
 
-        dm_mass_all = np.array(
-            f["PartType1"]["Masses"][:] * UnitMass.to(u.M_sun)
-        )
-        dm_pos_all = np.array(
-            f["PartType1"]["Coordinates"][:] * UnitLength.to(u.kpc)
-        )
+            # Load all particles
+            gas_mass_all = np.array(f["PartType0"]["Masses"][:] * UnitMass.to(u.M_sun))
+            gas_pos_all = np.array(f["PartType0"]["Coordinates"][:] * UnitLength.to(u.kpc))
+            dm_mass_all = np.array(f["PartType1"]["Masses"][:] * UnitMass.to(u.M_sun))
+            dm_pos_all = np.array(f["PartType1"]["Coordinates"][:] * UnitLength.to(u.kpc))
+            dm2_mass_all = np.array(f["PartType2"]["Masses"][:] * UnitMass.to(u.M_sun))
+            dm2_pos_all = np.array(f["PartType2"]["Coordinates"][:] * UnitLength.to(u.kpc))
+            star_mass_all = np.array(f["PartType4"]["Masses"][:] * UnitMass.to(u.M_sun))
+            star_pos_all = np.array(f["PartType4"]["Coordinates"][:] * UnitLength.to(u.kpc))
 
-        dm2_mass_all = np.array(
-            f["PartType2"]["Masses"][:] * UnitMass.to(u.M_sun)
-        )
-        dm2_pos_all = np.array(
-            f["PartType2"]["Coordinates"][:] * UnitLength.to(u.kpc)
-        )
+        # Slice to halo particles
+        start_gas, end_gas = halo_particle_bounds(halo_length, target, 0)
+        gas_mass = gas_mass_all[start_gas:end_gas]
+        gas_pos = gas_pos_all[start_gas:end_gas]
 
-        star_mass_all = np.array(
-            f["PartType4"]["Masses"][:] * UnitMass.to(u.M_sun)
-        )
-        star_pos_all = np.array(
-            f["PartType4"]["Coordinates"][:] * UnitLength.to(u.kpc)
-        )
+        start_dm, end_dm = halo_particle_bounds(halo_length, target, 1)
+        dm_mass = dm_mass_all[start_dm:end_dm]
+        dm_pos = dm_pos_all[start_dm:end_dm]
 
-    # Slice to halo particles
-    start_gas = np.sum(halo_length[:target, 0])
-    end_gas = start_gas + halo_length[target, 0]
-    gas_mass = gas_mass_all[start_gas:end_gas]
-    gas_pos = gas_pos_all[start_gas:end_gas]
+        start_dm2, end_dm2 = halo_particle_bounds(halo_length, target, 2)
+        dm2_mass = dm2_mass_all[start_dm2:end_dm2]
+        dm2_pos = dm2_pos_all[start_dm2:end_dm2]
 
-    start_dm = np.sum(halo_length[:target, 1])
-    end_dm = start_dm + halo_length[target, 1]
-    dm_mass = dm_mass_all[start_dm:end_dm]
-    dm_pos = dm_pos_all[start_dm:end_dm]
+        start_star, end_star = halo_particle_bounds(halo_length, target, 4)
+        star_mass = star_mass_all[start_star:end_star]
+        star_pos = star_pos_all[start_star:end_star]
 
-    start_dm2 = np.sum(halo_length[:target, 2])
-    end_dm2 = start_dm2 + halo_length[target, 2]
-    dm2_mass = dm2_mass_all[start_dm2:end_dm2]
-    dm2_pos = dm2_pos_all[start_dm2:end_dm2]
-
-    start_star = np.sum(halo_length[:target, 4])
-    end_star = start_star + halo_length[target, 4]
-    star_mass = star_mass_all[start_star:end_star]
-    star_pos = star_pos_all[start_star:end_star]
+    boxsize_kpc = boxsize * UnitLength.to(u.kpc)
 
     center = halo_pos * UnitLength.to(u.kpc)  # assuming halo_pos is in code units
 
@@ -466,7 +537,7 @@ def compute_rotation_curve_and_save(
 
     # Store original rs in kpc for plotting convenience
     run_name = _normalize_run_dir(data_dir).replace(os.sep, "_")
-    outpath = os.path.join(output_dir, f"Run_{run_name}_rot.hdf5")
+    outpath = os.path.join(output_dir, f"Run_{run_name}_rot{filename_suffix}.hdf5")
     with h5py.File(outpath, "w") as f_out:
         f_out.create_dataset("rs", data=rs)
         f_out.create_dataset("cum_mass", data=cum_mass)
@@ -580,4 +651,3 @@ def loadObjects(basePath, snapNum, gName, nName, fields):
         return result[fields[0]]
 
     return result
-

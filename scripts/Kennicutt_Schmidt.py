@@ -9,7 +9,13 @@ import numpy as np
 from astropy.cosmology import FlatLambdaCDM
 import astropy.units as u
 
-from .helpers import load_particles, identify_target_halo, loadHalos, split_paired_array, code
+from .helpers import (
+    halo_particle_bounds,
+    load_particles,
+    loadHalos,
+    split_paired_array,
+    code,
+)
 from .SFR_history import _find_snapshot_file
 
 # Literature comparison
@@ -81,6 +87,8 @@ def plot_kennicutt_schmidt(
     r_max: float | None = None,
     n_annuli: int = 20,
     output_dir: str = "Plots",
+    particle_data: dict | None = None,
+    filename_suffix: str = "",
 ) -> str:
     """
     Compute and plot the Kennicutt–Schmidt relation for the target halo.
@@ -109,38 +117,50 @@ def plot_kennicutt_schmidt(
     str
         Path to the saved Kennicutt–Schmidt plot.
     """
-    # Identify target halo
-    target, min_mass, max_mass = identify_target_halo(data_dir, snapnum)
-    
-    # Get halo particle indices for gas (PartType0)
-    halo_length = loadHalos(data_dir, snapnum, 'GroupLenType')
-    start_gas = np.sum(halo_length[:target, 0])
-    end_gas = start_gas + halo_length[target, 0]
-    start_stars = np.sum(halo_length[:target, 4])
-    end_stars = start_stars + halo_length[target, 4]
-
-    # Center on the halo center
-    halo_pos = loadHalos(data_dir, snapnum, 'GroupPos')[target]
+    if particle_data is not None:
+        halo_pos = particle_data["halo_pos"]
+        header_attrs = particle_data["header"]
+    else:
+        halo_length = loadHalos(data_dir, snapnum, 'GroupLenType')
+        start_gas, end_gas = halo_particle_bounds(halo_length, target, 0)
+        start_stars, end_stars = halo_particle_bounds(halo_length, target, 4)
+        halo_pos = loadHalos(data_dir, snapnum, 'GroupPos')[target]
+        snapfile = _find_snapshot_file(data_dir, snapnum)
+        if snapfile is None:
+            raise RuntimeError(f"Snapshot file for snapnum {snapnum} not found.")
+        with h5py.File(snapfile, "r") as f:
+            header_attrs = dict(f["Header"].attrs.items())
 
     if code == "arepo":
-        # Load gas properties: mass, positions, and instantaneous SFR
-        data_gas = load_particles(
-            data_dir,
-            "gas",
-            fields=["Masses", "Coordinates", "StarFormationRate"],
-            snapnum=snapnum,
-            redshift=None,
-            verbose=False,
-        )
+        h = float(header_attrs.get("HubbleParam", 1.0))
 
-        if "StarFormationRate" not in data_gas:
-            raise RuntimeError(
-                "Gas StarFormationRate field not found; cannot compute Kennicutt–Schmidt law."
+        if particle_data is not None:
+            data_gas = particle_data["particles"].get(0, {})
+            if "StarFormationRate" not in data_gas:
+                raise RuntimeError(
+                    "Gas StarFormationRate field not found; cannot compute Kennicutt–Schmidt law."
+                )
+            masses_gas = np.asarray(data_gas["Masses"]) * 1e10 / h
+            coords_gas = np.asarray(data_gas["Coordinates"])
+            sfr_gas = np.asarray(data_gas["StarFormationRate"])
+        else:
+            # Load gas properties: mass, positions, and instantaneous SFR
+            data_gas = load_particles(
+                data_dir,
+                "gas",
+                fields=["Masses", "Coordinates", "StarFormationRate"],
+                snapnum=snapnum,
+                redshift=None,
+                verbose=False,
             )
 
-        masses_gas = np.asarray(data_gas["Masses"])[start_gas:end_gas] * 1e10 / h
-        coords_gas = np.asarray(data_gas["Coordinates"])[start_gas:end_gas]
-        sfr_gas = np.asarray(data_gas["StarFormationRate"])[start_gas:end_gas]
+            if "StarFormationRate" not in data_gas:
+                raise RuntimeError(
+                    "Gas StarFormationRate field not found; cannot compute Kennicutt–Schmidt law."
+                )
+            masses_gas = np.asarray(data_gas["Masses"])[start_gas:end_gas] * 1e10 / h
+            coords_gas = np.asarray(data_gas["Coordinates"])[start_gas:end_gas]
+            sfr_gas = np.asarray(data_gas["StarFormationRate"])[start_gas:end_gas]
 
         coords_centered_gas = coords_gas - halo_pos
         R_gas = np.sqrt(coords_centered_gas[:, 0]**2 + coords_centered_gas[:, 1]**2)
@@ -153,59 +173,55 @@ def plot_kennicutt_schmidt(
             R_gas, masses_gas, sfr_gas, r_bins
         )
 
-        # Get h for unit conversion
-        snapfile = _find_snapshot_file(data_dir, snapnum)
-        with h5py.File(snapfile, "r") as f:
-            h = float(f["Header"].attrs.get("HubbleParam", 1.0))
-
     elif code == "gizmo":
-        
-        snapfile = _find_snapshot_file(data_dir, snapnum)
-        if snapfile is None:
-            raise RuntimeError(f"Snapshot file for snapnum {snapnum} not found.")
+        if "Time" in header_attrs:
+            a_snap = float(header_attrs["Time"])
+        else:
+            a_snap = 1.0 / (1.0 + float(header_attrs.get("Redshift", 0.0)))
 
-        with h5py.File(snapfile, "r") as f:
-            header = f["Header"]
-            if "Time" in header.attrs:
-                a_snap = float(header.attrs["Time"])
-            else:
-                a_snap = 1.0 / (1.0 + float(header.attrs.get("Redshift", 0.0)))
+        h = float(header_attrs.get("HubbleParam", 1.0))
+        H0 = 100.0 * h * u.km / u.s / u.Mpc
+        Om0 = float(header_attrs.get("Omega0", 0.3))
+        cosmo = FlatLambdaCDM(H0=H0, Om0=Om0)
+        z_snap = 1.0 / a_snap - 1.0
+        t_snap = cosmo.age(z_snap).to(u.Myr).value
 
-            h = float(header.attrs.get("HubbleParam", 1.0))
-            H0 = 100.0 * h * u.km / u.s / u.Mpc
-            Om0 = float(header.attrs.get("Omega0", 0.3))
-            cosmo = FlatLambdaCDM(H0=H0, Om0=Om0)
-            z_snap = 1.0 / a_snap - 1.0
-            t_snap = cosmo.age(z_snap).to(u.Myr).value
-            
-        # Load gas for sigma_gas
-        data_gas = load_particles(
-            data_dir,
-            "gas",
-            fields=["Masses", "Coordinates"],
-            snapnum=snapnum,
-            redshift=None,
-            verbose=False,
-        )
+        if particle_data is not None:
+            data_gas = particle_data["particles"].get(0, {})
+            data_stars = particle_data["particles"].get(4, {})
+            masses_gas = np.asarray(data_gas["Masses"]) * 1e10 / h
+            coords_gas = np.asarray(data_gas["Coordinates"])
+            masses_stars = np.asarray(data_stars["Masses"]) * 1e10 / h
+            coords_stars = np.asarray(data_stars["Coordinates"])
+            star_ages = np.asarray(data_stars["StellarFormationTime"])
+        else:
+            # Load gas for sigma_gas
+            data_gas = load_particles(
+                data_dir,
+                "gas",
+                fields=["Masses", "Coordinates"],
+                snapnum=snapnum,
+                redshift=None,
+                verbose=False,
+            )
+            masses_gas = np.asarray(data_gas["Masses"])[start_gas:end_gas] * 1e10 / h
+            coords_gas = np.asarray(data_gas["Coordinates"])[start_gas:end_gas]
 
-        masses_gas = np.asarray(data_gas["Masses"])[start_gas:end_gas] * 1e10 / h
-        coords_gas = np.asarray(data_gas["Coordinates"])[start_gas:end_gas]
+            # Load stars for sigma_sfr
+            data_stars = load_particles(
+                data_dir,
+                "stars",
+                fields=["Masses", "Coordinates", "StellarFormationTime"],
+                snapnum=snapnum,
+                redshift=None,
+                verbose=False,
+            )
+            masses_stars = np.asarray(data_stars["Masses"])[start_stars:end_stars] * 1e10 / h
+            coords_stars = np.asarray(data_stars["Coordinates"])[start_stars:end_stars]
+            star_ages = np.asarray(data_stars["StellarFormationTime"])[start_stars:end_stars]
+
         coords_centered_gas = coords_gas - halo_pos
         R_gas = np.sqrt(coords_centered_gas[:, 0]**2 + coords_centered_gas[:, 1]**2)
-
-        # Load stars for sigma_sfr
-        data_stars = load_particles(
-            data_dir,
-            "stars",
-            fields=["Masses", "Coordinates", "StellarFormationTime"],
-            snapnum=snapnum,
-            redshift=None,
-            verbose=False,
-        )
-
-        masses_stars = np.asarray(data_stars["Masses"])[start_stars:end_stars] * 1e10 / h
-        coords_stars = np.asarray(data_stars["Coordinates"])[start_stars:end_stars]
-        star_ages = np.asarray(data_stars["StellarFormationTime"])[start_stars:end_stars]
 
         coords_centered_stars = coords_stars - halo_pos
         R_stars = np.sqrt(coords_centered_stars[:, 0]**2 + coords_centered_stars[:, 1]**2)
@@ -279,7 +295,7 @@ def plot_kennicutt_schmidt(
 
     os.makedirs(output_dir, exist_ok=True)
     tag = f"_{data_dir}" if data_dir is not None else ""
-    outname = os.path.join(output_dir, f"Kennicutt_Schmidt{tag}.png")
+    outname = os.path.join(output_dir, f"Kennicutt_Schmidt{tag}{filename_suffix}.png")
     fig.savefig(outname, bbox_inches="tight")
     plt.close(fig)
 
@@ -290,4 +306,3 @@ if __name__ == "__main__":
     raise SystemExit(
         "This module is meant to be imported and used via plot_kennicutt_schmidt()."
     )
-

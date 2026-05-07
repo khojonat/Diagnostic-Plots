@@ -17,7 +17,8 @@ def plot_2d_hist(
     xlabel: str = "x",
     ylabel: str = "y",
     title: str | None = None,
-    cmap: str = "viridis"
+    cmap: str = "viridis",
+    particle_data: dict | None = None,
 ) -> str:
     """
     Produce a 2D histogram (density map) for arbitrary x/y data.
@@ -49,8 +50,12 @@ def plot_2d_hist(
         Path to the saved image file.
     """
 
-    # Identifying target particles: 
-    if snapnum != 'test':
+    if particle_data is not None:
+        Particle_positions = particle_data["particles"][parttype]["Coordinates"]
+        Particle_Masses = particle_data["particles"][parttype]["Masses"]
+
+    # Identifying target particles:
+    elif snapnum != 'test':
         
         Particle_positions = load_particles(data_dir, parttype, ['Coordinates'], snapnum=snapnum)
         Particle_Masses = load_particles(data_dir, parttype, ['Masses'], snapnum=snapnum)
@@ -114,4 +119,3 @@ if __name__ == "__main__":
     raise SystemExit(
         "This module is meant to be imported and used via plot_2d_hist()."
     )
-

@@ -54,6 +54,7 @@ def plot_tully_fisher(
     rot_curve_file: str,
     data_dir: str,
     output_dir: str = "Plots",
+    filename_suffix: str = "",
 ) -> str:
     """
     Load precomputed rotation-curve data from an HDF5 file and
@@ -98,7 +99,7 @@ def plot_tully_fisher(
     fig2.tight_layout()
 
     os.makedirs(output_dir, exist_ok=True)
-    outname = os.path.join(output_dir, f"{data_dir}_TullyFisher.png")
+    outname = os.path.join(output_dir, f"{data_dir}_TullyFisher{filename_suffix}.png")
     fig2.savefig(outname, bbox_inches="tight")
     plt.close(fig2)
 
@@ -109,4 +110,3 @@ if __name__ == "__main__":
     raise SystemExit(
         "This module is meant to be imported and used via plot_tully_fisher()."
     )
-

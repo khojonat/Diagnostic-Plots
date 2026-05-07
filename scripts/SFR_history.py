@@ -9,7 +9,7 @@ import numpy as np
 from astropy.cosmology import FlatLambdaCDM
 import astropy.units as u
 
-from .helpers import code, loadHalos, snapshot_base, _normalize_run_dir
+from .helpers import code, halo_particle_bounds, loadHalos, snapshot_base, _normalize_run_dir
 
 
 def _find_snapshot_file(data_dir: str, snapnum: int) -> str | None:
@@ -37,6 +37,8 @@ def plot_sfr_history(
     max_snapnum: int,
     target: int,
     output_dir: str = "Plots",
+    particle_data: dict | None = None,
+    filename_suffix: str = "",
 ) -> str:
     """
     Load the star formation history of the (global) system across snapshots
@@ -74,21 +76,21 @@ def plot_sfr_history(
         with h5py.File(snapfile, "r") as f:
             header = f["Header"]
             z = float(header.attrs.get("Redshift", 0.0))
-            halo_length = loadHalos(data_dir, snap, 'GroupLenType')
-            start = np.sum(halo_length[:target, 0])
-            end = start + halo_length[target, 0]
-
             if code == "arepo":
-                if "PartType0" not in f or "StarFormationRate" not in f["PartType0"]:
+                if snap == max_snapnum and particle_data is not None:
+                    gas_data = particle_data["particles"].get(0, {})
+                    if "StarFormationRate" not in gas_data:
+                        continue
+                    sfr = np.sum(gas_data["StarFormationRate"])
+                elif "PartType0" in f and "StarFormationRate" in f["PartType0"]:
+                    halo_length = loadHalos(data_dir, snap, 'GroupLenType')
+                    start, end = halo_particle_bounds(halo_length, target, 0)
+                    sfr_all = f["PartType0"]["StarFormationRate"][:]
+                    sfr = np.sum(sfr_all[start:end])
+                else:
                     continue
-                sfr_all = f["PartType0"]["StarFormationRate"][:]
-                sfr = np.sum(sfr_all[start:end])
-            elif code == "gizmo":
-                if "PartType4" not in f or "StellarFormationTime" not in f["PartType4"]:
-                    continue
-                star_ages = f["PartType4"]["StellarFormationTime"][:]
-                star_masses = f["PartType4"]["Masses"][:]
 
+            elif code == "gizmo":
                 if "Time" in header.attrs:
                     a_snap = float(header.attrs["Time"])
                 else:
@@ -100,6 +102,20 @@ def plot_sfr_history(
                 cosmo = FlatLambdaCDM(H0=H0, Om0=Om0)
                 z_snap = 1.0 / a_snap - 1.0
                 t_snap = cosmo.age(z_snap).to(u.Myr).value
+
+                if snap == max_snapnum and particle_data is not None:
+                    star_data = particle_data["particles"].get(4, {})
+                    if "StellarFormationTime" not in star_data or "Masses" not in star_data:
+                        continue
+                    star_ages = star_data["StellarFormationTime"]
+                    star_masses = star_data["Masses"]
+                elif "PartType4" in f and "StellarFormationTime" in f["PartType4"]:
+                    halo_length = loadHalos(data_dir, snap, 'GroupLenType')
+                    start, end = halo_particle_bounds(halo_length, target, 4)
+                    star_ages = f["PartType4"]["StellarFormationTime"][start:end]
+                    star_masses = f["PartType4"]["Masses"][start:end]
+                else:
+                    continue
 
                 valid = (star_ages > 0) & (star_ages <= 1.0)
                 t_form = np.full_like(star_ages, np.inf, dtype=float)
@@ -143,7 +159,7 @@ def plot_sfr_history(
 
     os.makedirs(output_dir, exist_ok=True)
     tag = f"_{data_dir}" if data_dir is not None else ""
-    outname = os.path.join(output_dir, f"SFR_history{tag}.png")
+    outname = os.path.join(output_dir, f"SFR_history{tag}{filename_suffix}.png")
     fig.savefig(outname, bbox_inches="tight")
     plt.close(fig)
 
@@ -154,4 +170,3 @@ if __name__ == "__main__":
     raise SystemExit(
         "This module is meant to be imported and used via plot_sfr_history()."
     )
-

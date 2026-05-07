@@ -11,6 +11,7 @@ def plot_rotation_curve(
     rot_curve_file: str,
     data_dir: str,
     output_dir: str = "Plots",
+    filename_suffix: str = "",
 ) -> str:
     """
     Make a rotation-curve plot from precomputed data stored in an HDF5 file.
@@ -76,7 +77,7 @@ def plot_rotation_curve(
     fig.subplots_adjust(hspace=0.0)
 
     os.makedirs(output_dir, exist_ok=True)
-    outname = os.path.join(output_dir, f"rotation_curve2_{data_dir}.png")
+    outname = os.path.join(output_dir, f"rotation_curve2_{data_dir}{filename_suffix}.png")
     fig.savefig(outname, bbox_inches="tight")
     plt.close(fig)
 
@@ -87,4 +88,3 @@ if __name__ == "__main__":
     raise SystemExit(
         "This module is meant to be imported and used via plot_rotation_curve()."
     )
-

@@ -38,7 +38,16 @@ def read_plot_flags(params_path: Path) -> dict:
 
     return flags
 
-def _component_density(parttype_str: str, label: str, filename: str,output_dir,data_dir,snapnum,target):
+def _component_density(
+    parttype_str: str,
+    label: str,
+    filename: str,
+    output_dir,
+    data_dir,
+    snapnum,
+    target,
+    particle_data: dict | None = None,
+):
     '''
     Helper to make 2d hist plots
     '''
@@ -52,9 +61,16 @@ def _component_density(parttype_str: str, label: str, filename: str,output_dir,d
         xlabel="x",
         ylabel="y",
         title=label,
+        particle_data=particle_data,
     )
 
-def run_all_diagnostics(data_dir: str, snapnum: int):
+def run_all_diagnostics(
+    data_dir: str,
+    snapnum: int,
+    particle_data: dict | None = None,
+    output_subdir: str | None = None,
+    filename_suffix: str = "",
+):
     """
     Run all diagnostic plots for a given simulation data directory.
     Plot production is controlled by flags in Sim_params.txt.
@@ -66,8 +82,12 @@ def run_all_diagnostics(data_dir: str, snapnum: int):
 
     # Identify target halo once
     target, min_mass, max_mass = identify_target_halo(data_dir, snapnum)
+    if particle_data is not None:
+        target = particle_data.get("target", target)
 
     output_dir = os.path.join(plot_dir, data_dir)
+    if output_subdir is not None:
+        output_dir = os.path.join(output_dir, output_subdir)
     os.makedirs(output_dir, exist_ok=True)
 
     results = {}
@@ -80,6 +100,8 @@ def run_all_diagnostics(data_dir: str, snapnum: int):
             min_mass=min_mass,
             max_mass=max_mass,
             output_dir=output_dir,
+            particle_data=particle_data,
+            filename_suffix=filename_suffix,
         )
 
     rot_needed = plot_flags.get("rot_curve", 0) or plot_flags.get("Tully_Fisher", 0)
@@ -90,6 +112,8 @@ def run_all_diagnostics(data_dir: str, snapnum: int):
             snapnum=snapnum,
             target=target,
             output_dir=os.path.join(output_dir, "sim_data"),
+            particle_data=particle_data,
+            filename_suffix=filename_suffix,
         )
         results["rotation_curve_data"] = rot_curve_file
 
@@ -98,6 +122,7 @@ def run_all_diagnostics(data_dir: str, snapnum: int):
                 rot_curve_file=rot_curve_file,
                 data_dir=data_dir,
                 output_dir=output_dir,
+                filename_suffix=filename_suffix,
             )
 
         if plot_flags.get("Tully_Fisher", 0):
@@ -105,23 +130,43 @@ def run_all_diagnostics(data_dir: str, snapnum: int):
                 rot_curve_file=rot_curve_file,
                 data_dir=data_dir,
                 output_dir=output_dir,
+                filename_suffix=filename_suffix,
             )
 
     if plot_flags.get("DM_density", 0):
         results["dm_density_map"] = _component_density(
-            "dm", f"DM density ({data_dir})", f"FIRE2_MW_{data_dir}_dm_density.png", output_dir, data_dir, snapnum, target
+            "dm",
+            f"DM density ({data_dir})",
+            f"FIRE2_MW_{data_dir}_dm_density{filename_suffix}.png",
+            output_dir,
+            data_dir,
+            snapnum,
+            target,
+            particle_data=particle_data,
         )
 
     if plot_flags.get("gas_density", 0):
         results["gas_density_map"] = _component_density(
-            "gas", f"Gas density ({data_dir})", f"FIRE2_MW_{data_dir}_gas_density.png", output_dir, data_dir, snapnum, target
+            "gas",
+            f"Gas density ({data_dir})",
+            f"FIRE2_MW_{data_dir}_gas_density{filename_suffix}.png",
+            output_dir,
+            data_dir,
+            snapnum,
+            target,
+            particle_data=particle_data,
         )
 
     if plot_flags.get("star_density", 0):
         results["stellar_density_map"] = _component_density(
             "stars",
             f"Stellar density ({data_dir})",
-            f"FIRE2_MW_{data_dir}_stellar_density.png", output_dir, data_dir, snapnum, target
+            f"FIRE2_MW_{data_dir}_stellar_density{filename_suffix}.png",
+            output_dir,
+            data_dir,
+            snapnum,
+            target,
+            particle_data=particle_data,
         )
 
     if plot_flags.get("SFR_history", 0):
@@ -130,6 +175,8 @@ def run_all_diagnostics(data_dir: str, snapnum: int):
             max_snapnum=snapnum,
             target=target,
             output_dir=output_dir,
+            particle_data=particle_data,
+            filename_suffix=filename_suffix,
         )
 
     if plot_flags.get("Ken_Schmidt", 0):
@@ -138,6 +185,8 @@ def run_all_diagnostics(data_dir: str, snapnum: int):
             snapnum=snapnum,
             target=target,
             output_dir=output_dir,
+            particle_data=particle_data,
+            filename_suffix=filename_suffix,
         )
 
     return results
@@ -257,4 +306,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
