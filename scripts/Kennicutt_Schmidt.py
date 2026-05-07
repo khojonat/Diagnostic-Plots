@@ -110,7 +110,7 @@ def plot_kennicutt_schmidt(
         Path to the saved Kennicutt–Schmidt plot.
     """
     # Identify target halo
-    target = identify_target_halo(data_dir, snapnum)
+    target, min_mass, max_mass = identify_target_halo(data_dir, snapnum)
     
     # Get halo particle indices for gas (PartType0)
     halo_length = loadHalos(data_dir, snapnum, 'GroupLenType')
