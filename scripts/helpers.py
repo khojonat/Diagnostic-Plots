@@ -428,14 +428,20 @@ def compute_rotation_curve_and_save(
     if particle_data is not None:
         halo_pos = particle_data["halo_pos"]
         boxsize = particle_data["header"]["BoxSize"]
-        gas_mass = np.array(particle_data["particles"][0]["Masses"] * UnitMass.to(u.M_sun))
-        gas_pos = np.array(particle_data["particles"][0]["Coordinates"] * UnitLength.to(u.kpc))
-        dm_mass = np.array(particle_data["particles"][1]["Masses"] * UnitMass.to(u.M_sun))
-        dm_pos = np.array(particle_data["particles"][1]["Coordinates"] * UnitLength.to(u.kpc))
-        dm2_mass = np.array(particle_data["particles"][2]["Masses"] * UnitMass.to(u.M_sun))
-        dm2_pos = np.array(particle_data["particles"][2]["Coordinates"] * UnitLength.to(u.kpc))
-        star_mass = np.array(particle_data["particles"][4]["Masses"] * UnitMass.to(u.M_sun))
-        star_pos = np.array(particle_data["particles"][4]["Coordinates"] * UnitLength.to(u.kpc))
+
+        def component_arrays(parttype):
+            fields = particle_data["particles"].get(parttype, {})
+            if not fields:
+                return np.array([]), np.empty((0, 3))
+            return (
+                np.array(fields["Masses"] * UnitMass.to(u.M_sun)),
+                np.array(fields["Coordinates"] * UnitLength.to(u.kpc)),
+            )
+
+        gas_mass, gas_pos = component_arrays(0)
+        dm_mass, dm_pos = component_arrays(1)
+        dm2_mass, dm2_pos = component_arrays(2)
+        star_mass, star_pos = component_arrays(4)
 
     else:
         # Identify target halo
