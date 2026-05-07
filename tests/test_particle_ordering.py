@@ -12,12 +12,14 @@ Usage:
 import argparse
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 sys.dont_write_bytecode = True
 
-os.environ.setdefault("MPLCONFIGDIR", "/private/tmp/diagnostic-plots-mplconfig")
-os.environ.setdefault("XDG_CACHE_HOME", "/private/tmp/diagnostic-plots-cache")
+cache_root = tempfile.gettempdir()
+os.environ.setdefault("MPLCONFIGDIR", os.path.join(cache_root, "diagnostic-plots-mplconfig"))
+os.environ.setdefault("XDG_CACHE_HOME", os.path.join(cache_root, "diagnostic-plots-cache"))
 os.makedirs(os.environ["MPLCONFIGDIR"], exist_ok=True)
 os.makedirs(os.environ["XDG_CACHE_HOME"], exist_ok=True)
 
