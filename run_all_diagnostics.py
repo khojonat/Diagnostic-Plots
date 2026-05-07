@@ -11,7 +11,7 @@ from scripts.rotation_curve import plot_rotation_curve
 from scripts.density_2d import plot_2d_hist
 from scripts.SFR_history import plot_sfr_history
 from scripts.Kennicutt_Schmidt import plot_kennicutt_schmidt
-from scripts.helpers import compute_rotation_curve_and_save, plot_dir
+from scripts.helpers import compute_rotation_curve_and_save, plot_dir, unit_mass, unit_distance
 
 
 def read_plot_flags(params_path: Path) -> dict:
@@ -100,8 +100,8 @@ def run_all_diagnostics(directory_name: str, snapnum: int):
             parttype={"dm": 1, "gas": 0, "stars": 4}[parttype_str],
             target=target,
             output_path=output_path,
-            xlabel="x (code units)",
-            ylabel="y (code units)",
+            xlabel="x",
+            ylabel="y",
             title=label,
         )
 
@@ -192,8 +192,12 @@ def run_test_diagnostics():
             positions[:, 0], positions[:, 1], bins=(nbins, nbins), weights=masses
         )
 
+        # Convert from code units to physical units (Msun/kpc^2)
+        # H is in code mass per code distance^2, so multiply by unit_mass / unit_distance^2
+        H = H * unit_mass / (unit_distance ** 2)
+
         fig, ax = plt.subplots(figsize=(6, 6))
-        extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+        extent = [xedges[0] * unit_distance, xedges[-1] * unit_distance, yedges[0] * unit_distance, yedges[-1] * unit_distance]
         im = ax.imshow(
             H.T,
             origin="lower",
@@ -203,12 +207,12 @@ def run_test_diagnostics():
             norm="log",
         )
 
-        ax.set_xlabel("x (code units)")
-        ax.set_ylabel("y (code units)")
+        ax.set_xlabel("x (kpc)")
+        ax.set_ylabel("y (kpc)")
         ax.set_title(label)
 
         cbar = fig.colorbar(im, ax=ax, shrink=0.7)
-        cbar.set_label("Mass")
+        cbar.set_label("Surface Density (Msun/kpc$^2$)")
 
         fig.tight_layout()
 

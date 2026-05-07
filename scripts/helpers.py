@@ -25,6 +25,34 @@ def _read_sim_params() -> dict:
     return params
 
 
+def _evaluate_param(value_str: str, params: dict) -> float:
+    """
+    Safely evaluate a parameter value that may contain mathematical expressions.
+    Supports basic math operations and references to other parameters.
+    """
+    value_str = value_str.strip()
+    try:
+        # Try direct float conversion first
+        return float(value_str)
+    except ValueError:
+        pass
+    
+    # Build a safe namespace with available parameters (as floats where possible)
+    safe_dict = {}
+    for k, v in params.items():
+        try:
+            safe_dict[k] = float(v)
+        except (ValueError, TypeError):
+            # Skip non-numeric parameters
+            pass
+    
+    # Evaluate the expression with only numeric parameters and allowed functions
+    try:
+        return float(eval(value_str, {"__builtins__": {}}, safe_dict))
+    except Exception as e:
+        raise ValueError(f"Cannot evaluate parameter '{value_str}': {e}")
+
+
 def _normalize_path(path: str) -> str:
     path = path.strip()
     if not path:
@@ -83,6 +111,22 @@ snapshot_base = _normalize_path(_sim_params.get("snapshot_base", ""))
 fof_sub_base = _normalize_path(_sim_params.get("fof_sub_base", ""))
 plot_dir = _normalize_path(_sim_params.get("plot_dir", "Plots"))
 code = _sim_params.get("code", "arepo").strip().lower()
+
+# Parse numeric unit parameters
+try:
+    Hubbleparam = _evaluate_param(_sim_params.get("Hubbleparam", "1.0"), _sim_params)
+except ValueError:
+    Hubbleparam = 0.6909
+
+try:
+    unit_mass = _evaluate_param(_sim_params.get("unit_mass", "1e10"), _sim_params)
+except ValueError:
+    unit_mass = 1e10
+
+try:
+    unit_distance = _evaluate_param(_sim_params.get("unit_distance", "1.0"), _sim_params)
+except ValueError:
+    unit_distance = 1.0
 
 if not snapshot_base or not fof_sub_base:
     raise ValueError("Sim_params.txt must define snapshot_base and fof_sub_base.")

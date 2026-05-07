@@ -7,6 +7,9 @@ plot_dir       =  Plots/
 
 # What code was used to produce the sim?
 code           =  gizmo   # arepo
+Hubbleparam    = 0.6909
+unit_mass      = 1e10/Hubbleparam # convert to Msun
+unit_distance  = 1/Hubbleparam # convert to kpc 
 
 # Sobol sequence configuration
 # Set to path containing sobol_params.txt, or 0 to disable sobol and use target_log_mass

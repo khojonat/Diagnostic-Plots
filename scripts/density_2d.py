@@ -5,7 +5,7 @@ import matplotlib
 matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from .helpers import load_particles, identify_target_halo, loadHalos
+from .helpers import load_particles, identify_target_halo, loadHalos, unit_mass, unit_distance
 
 def plot_2d_hist(
     box_num,
@@ -61,9 +61,13 @@ def plot_2d_hist(
 
     H, xedges, yedges = np.histogram2d(Particle_positions[:,0], Particle_positions[:,1], bins=(nbins,nbins), weights=Particle_Masses)
 
+    # Convert from code units to physical units (Msun/kpc^2)
+    # H is in code mass per code distance^2, so multiply by unit_mass / unit_distance^2
+    H = H * unit_mass / (unit_distance ** 2)
+
     fig, ax = plt.subplots(figsize=(6, 6))
 
-    extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+    extent = [xedges[0] * unit_distance, xedges[-1] * unit_distance, yedges[0] * unit_distance, yedges[-1] * unit_distance]
     im = ax.imshow(
         H.T,
         origin="lower",
@@ -73,13 +77,13 @@ def plot_2d_hist(
         norm = 'log'
     )
 
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
+    ax.set_xlabel(xlabel + " (kpc)")
+    ax.set_ylabel(ylabel + " (kpc)")
     if title is not None:
         ax.set_title(title)
 
     cbar = fig.colorbar(im, ax=ax,shrink=0.7)
-    cbar.set_label("Counts")
+    cbar.set_label("Surface Density (Msun/kpc$^2$)")
 
     fig.tight_layout()
 
