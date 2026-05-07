@@ -169,13 +169,13 @@ def find_snapshot_from_redshift(path, target_z):
     return snapnums[np.argmin(np.abs(redshifts - target_z))]
     
 
-def load_particles(box_num, parttype, fields, redshift=None,
+def load_particles(data_dir, parttype, fields, redshift=None,
                    snapnum=None, verbose=True):
     """
     Load particle fields from AREPO or GIZMO snapshots
     using raw HDF5 access.
     """
-    path = os.path.join(snapshot_base, _normalize_run_dir(box_num))
+    path = os.path.join(snapshot_base, _normalize_run_dir(data_dir))
 
     if isinstance(parttype, str):
         try:
@@ -234,13 +234,13 @@ def load_particles(box_num, parttype, fields, redshift=None,
     return data
 
 
-def identify_target_halo(box_num,snapnum):
+def identify_target_halo(data_dir,snapnum):
     ''' Identifies a target halo of a given mass '''
     
     sobol_path = _sim_params.get("sobol_path", "").strip()
     
     if sobol_path and sobol_path != "0":
-        sobol = read_sobol(box_num, sobol_path)
+        sobol = read_sobol(data_dir, sobol_path)
         Mtarget = sobol[0]
     else:
         Mtarget = float(_sim_params.get("target_log_mass", 11.5))
@@ -249,13 +249,13 @@ def identify_target_halo(box_num,snapnum):
     min_mass = Mtarget - 0.1 * 2 # Doubling tolerance to try to catch valid halo
     max_mass = Mtarget + 0.1 * 2
     
-    path = os.path.join(snapshot_base, _normalize_run_dir(box_num))
+    path = os.path.join(snapshot_base, _normalize_run_dir(data_dir))
     with h5py.File(os.path.join(path, f"snap_{snapnum:03d}.hdf5"), "r") as f:
 
         Header = f['Header']
         h = Header.attrs['HubbleParam']
     
-    halo_masses = loadHalos(box_num,snapnum,'GroupMassType') * 1e10 / h
+    halo_masses = loadHalos(data_dir,snapnum,'GroupMassType') * 1e10 / h
 
     DM1_masses  = halo_masses[:,1]
     DM2_masses  = halo_masses[:,2]
@@ -278,7 +278,7 @@ def identify_target_halo(box_num,snapnum):
     
         # If they're all contaminated, just take the least contaminated halo in the mass range
         if i == len(valid) - 1:
-            print(f'{_normalize_run_dir(box_num)}: All valid halos are contaminated')
+            print(f'{_normalize_run_dir(data_dir)}: All valid halos are contaminated')
             target = valid[np.argmin(all_contam)]
             break
             
@@ -319,7 +319,7 @@ def split_paired_array(arr, first_is_x: bool = True):
 
 
 def compute_rotation_curve_and_save(
-    box_num: int,
+    data_dir: str,
     snapnum: int,
     target: int,
     output_dir: str = "sim_data",
@@ -330,16 +330,16 @@ def compute_rotation_curve_and_save(
     compiled data in an HDF5 file for later use (e.g. Tully–Fisher plots).
     Code originally from Alex Garcia. Adapted for this project.
 
-    The output file is saved as sim_data/Run_<box_num>_rot.hdf5 by default.
+    The output file is saved as sim_data/Run_<data_dir>_rot.hdf5 by default.
     """
     os.makedirs(output_dir, exist_ok=True)
 
     # Identify target halo
-    # target = identify_target_halo(box_num, snapnum)
-    halo_length = loadHalos(box_num, snapnum, 'GroupLenType')
-    halo_pos = loadHalos(box_num, snapnum, 'GroupPos')[target]
+    # target = identify_target_halo(data_dir, snapnum)
+    halo_length = loadHalos(data_dir, snapnum, 'GroupLenType')
+    halo_pos = loadHalos(data_dir, snapnum, 'GroupPos')[target]
 
-    snap_path = os.path.join(snapshot_base, _normalize_run_dir(box_num))
+    snap_path = os.path.join(snapshot_base, _normalize_run_dir(data_dir))
     snapfile = os.path.join(snap_path, f"snap_{snapnum:03d}.hdf5")
     with h5py.File(snapfile, "r") as f:
         header = f["Header"]
@@ -461,7 +461,7 @@ def compute_rotation_curve_and_save(
     vrot_stars_only = np.sqrt(G * cum_mass_stars_only_kg / rs_m) / 1000.0
 
     # Store original rs in kpc for plotting convenience
-    run_name = _normalize_run_dir(box_num).replace(os.sep, "_")
+    run_name = _normalize_run_dir(data_dir).replace(os.sep, "_")
     outpath = os.path.join(output_dir, f"Run_{run_name}_rot.hdf5")
     with h5py.File(outpath, "w") as f_out:
         f_out.create_dataset("rs", data=rs)
@@ -505,10 +505,10 @@ def gcPath(basePath, snapNum):
         return filePath1
     return filePath2
 
-def loadHalos(box_num, snapNum, fields=None):
+def loadHalos(data_dir, snapNum, fields=None):
     """ Load all halo information from the entire group catalog for one snapshot
        (optionally restrict to a subset given by fields). """
-    basePath = os.path.join(fof_sub_base, _normalize_run_dir(box_num)) + os.sep
+    basePath = os.path.join(fof_sub_base, _normalize_run_dir(data_dir)) + os.sep
     return loadObjects(basePath, snapNum, "Group", "groups", fields)
 
 def loadObjects(basePath, snapNum, gName, nName, fields):

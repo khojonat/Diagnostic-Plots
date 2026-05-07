@@ -12,13 +12,13 @@ import astropy.units as u
 from .helpers import code, loadHalos, snapshot_base, _normalize_run_dir
 
 
-def _find_snapshot_file(box_num: int, snapnum: int) -> str | None:
+def _find_snapshot_file(data_dir: str, snapnum: int) -> str | None:
     """
     Locate a snapshot file for a given snapshot number, trying both
     snapdir_XXX/snap_XXX.hdf5 and snap_XXX.hdf5 in sim_path.
     Returns None if no file is found.
     """
-    path = os.path.join(snapshot_base, _normalize_run_dir(box_num))
+    path = os.path.join(snapshot_base, _normalize_run_dir(data_dir))
     snapdir = os.path.join(path, f"snapdir_{snapnum:03d}")
     if os.path.isdir(snapdir):
         snapfile = os.path.join(snapdir, f"snap_{snapnum:03d}.hdf5")
@@ -33,7 +33,7 @@ def _find_snapshot_file(box_num: int, snapnum: int) -> str | None:
 
 
 def plot_sfr_history(
-    box_num: int,
+    data_dir: str,
     max_snapnum: int,
     target: int,
     output_dir: str = "Plots",
@@ -49,8 +49,8 @@ def plot_sfr_history(
 
     Parameters
     ----------
-    box_num : int
-        Box identifier for labeling and filenames.
+    data_dir : str
+        Simulation data directory for labeling and filenames.
     max_snapnum : int
         Highest snapshot number to consider (0..max_snapnum will be scanned).
     target : int
@@ -67,14 +67,14 @@ def plot_sfr_history(
     sfr_values = []
 
     for snap in range(max_snapnum + 1):
-        snapfile = _find_snapshot_file(box_num, snap)
+        snapfile = _find_snapshot_file(data_dir, snap)
         if snapfile is None:
             continue
 
         with h5py.File(snapfile, "r") as f:
             header = f["Header"]
             z = float(header.attrs.get("Redshift", 0.0))
-            halo_length = loadHalos(box_num, snap, 'GroupLenType')
+            halo_length = loadHalos(data_dir, snap, 'GroupLenType')
             start = np.sum(halo_length[:target, 0])
             end = start + halo_length[target, 0]
 
@@ -135,14 +135,14 @@ def plot_sfr_history(
     ax.set_ylabel(r"Total SFR [$\rm M_\odot/yr$]")
     ax.set_yscale("log")
     title = "Star Formation History"
-    if box_num is not None:
-        title += f" (box {box_num})"
+    if data_dir is not None:
+        title += f" (box {data_dir})"
     ax.set_title(title)
 
     fig.tight_layout()
 
     os.makedirs(output_dir, exist_ok=True)
-    tag = f"_run{box_num}" if box_num is not None else ""
+    tag = f"_{data_dir}" if data_dir is not None else ""
     outname = os.path.join(output_dir, f"SFR_history{tag}.png")
     fig.savefig(outname, bbox_inches="tight")
     plt.close(fig)

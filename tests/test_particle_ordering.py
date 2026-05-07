@@ -223,7 +223,7 @@ def plot_ordering_comparison(
 
 def run_ordering_tests(
     snap_path: str, parttype: int = None, nbins: int = 256, 
-    box_num: int = None, snapnum: int = None
+    data_dir: int = None, snapnum: int = None
 ) -> dict:
     """
     Run particle ordering tests for specified particle type(s).
@@ -236,7 +236,7 @@ def run_ordering_tests(
         Specific particle type to test. If None, tests all types.
     nbins : int, optional
         Number of bins per axis (default: 256).
-    box_num : int, optional
+    data_dir : int, optional
         Box number (for output directory naming).
     snapnum : int, optional
         Snapshot number (for output directory naming).
@@ -251,9 +251,9 @@ def run_ordering_tests(
     results = {}
 
     # Determine output directory
-    if box_num is not None:
-        output_dir = os.path.join("Plots", str(box_num))
-        prefix = f"{box_num}_snap{snapnum:03d}_"
+    if data_dir is not None:
+        output_dir = os.path.join("Plots", str(data_dir))
+        prefix = f"{data_dir}_snap{snapnum:03d}_"
     else:
         output_dir = os.path.join("Plots", "test")
         prefix = ""
@@ -321,7 +321,7 @@ def _parse_args():
     # Determine mode based on arguments
     if args.first_arg == "test":
         args.mode = "test"
-        args.box_num = None
+        args.data_dir = None
         args.snapnum = None
         if args.second_arg is not None:
             try:
@@ -329,7 +329,7 @@ def _parse_args():
             except ValueError:
                 parser.error("For test mode, provide optional NBINS as integer.")
     else:
-        args.box_num = args.first_arg
+        args.data_dir = args.first_arg
         if args.second_arg is None:
             parser.error(
                 "Production mode requires both DIRECTORY_NAME and SNAP_NUM.\n"
@@ -382,7 +382,7 @@ def main():
         results = run_ordering_tests(
             snap_path,
             nbins=args.nbins,
-            box_num=args.first_arg,
+            data_dir=args.first_arg,
             snapnum=args.snapnum,
         )
 

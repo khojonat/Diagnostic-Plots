@@ -77,17 +77,17 @@ def _find_snapshot_file(path: str, snapnum: int) -> str:
     return snapfile
 
 
-def _get_hubble_param(box_num: int, snapnum: int) -> float:
+def _get_hubble_param(data_dir: str, snapnum: int) -> float:
     """
     Read HubbleParam from the snapshot header.
     """
     from .helpers import snapshot_base, _normalize_run_dir
-    snapfile = os.path.join(snapshot_base, _normalize_run_dir(box_num), f'snap_{snapnum:03d}.hdf5')
+    snapfile = os.path.join(snapshot_base, _normalize_run_dir(data_dir), f'snap_{snapnum:03d}.hdf5')
     with h5py.File(snapfile, "r") as f:
         return float(f["Header"].attrs["HubbleParam"])
 
 
-def _compute_total_masses(box_num: int,
+def _compute_total_masses(data_dir: str,
                           snapnum: int = None,
                           target: int = None,
                           verbose: bool = True):
@@ -101,18 +101,18 @@ def _compute_total_masses(box_num: int,
         raise ValueError("target must be provided")
 
     # Identify target halo
-    # target = identify_target_halo(box_num, snapnum)
-    halo_length = loadHalos(box_num, snapnum, 'GroupLenType')
+    # target = identify_target_halo(data_dir, snapnum)
+    halo_length = loadHalos(data_dir, snapnum, 'GroupLenType')
 
     # Load particle masses in code units (1e10 Msun / h for AREPO/Illustris)
-    star_data = load_particles(box_num, "stars", ["Masses"],
+    star_data = load_particles(data_dir, "stars", ["Masses"],
                                snapnum=snapnum,
                                verbose=verbose)
-    dm_data = load_particles(box_num, "dm", ["Masses"],
+    dm_data = load_particles(data_dir, "dm", ["Masses"],
                              snapnum=snapnum,
                              verbose=verbose)
 
-    h = _get_hubble_param(box_num, snapnum)
+    h = _get_hubble_param(data_dir, snapnum)
 
     # Slice to halo particles
     start_star = np.sum(halo_length[:target, 4])
@@ -130,7 +130,7 @@ def _compute_total_masses(box_num: int,
     return np.sum(star_masses), np.sum(dm_masses)
 
 
-def plot_stellar_halo_mass(box_num: int,
+def plot_stellar_halo_mass(data_dir: str,
                            snapnum: int,
                            target: int,
                            min_mass: float,
@@ -139,12 +139,12 @@ def plot_stellar_halo_mass(box_num: int,
                            verbose: bool = True):
     """
     Make the stellar–halo mass plot using simulation data loaded
-    via load_sim_data.py plus the literature comparison arrays.
+    via helpers.py plus the literature comparison arrays.
 
     Parameters
     ----------
-    box_num : int
-        Box identifier for labeling and output filename.
+    data_dir : str
+        Simulation data directory for labeling and output filename.
     snapnum : int
         Snapshot number to load.
     target : int
@@ -155,14 +155,14 @@ def plot_stellar_halo_mass(box_num: int,
         If True, prints a short message with the computed masses.
     """
     total_stellar, total_dm = _compute_total_masses(
-        box_num, snapnum=snapnum, target=target, verbose=verbose
+        data_dir, snapnum=snapnum, target=target, verbose=verbose
     )
 
     if verbose:
         print(f"Total stellar mass: {total_stellar:.3e} Msun")
         print(f"Total halo (DM) mass: {total_dm:.3e} Msun")
 
-    # Literature curves unpacked using the generic helper in load_sim_data
+    # Literature curves unpacked using the generic helper in helpers.py
     # Zacharegkas: [x0, y0, x1, y1, ...]
     Z25_x, Z25_y = split_paired_array(Zacharegkas_etal, first_is_x=True)
     # Read et al.: [y0, x0, y1, x1, ...]
@@ -172,7 +172,7 @@ def plot_stellar_halo_mass(box_num: int,
 
     fig, ax = plt.subplots(figsize=(8, 6))
 
-    label = f"Box {box_num}" if box_num is not None else "Simulation"
+    label = f"Box {data_dir}" if data_dir is not None else "Simulation"
     ax.scatter(np.log10(total_dm), np.log10(total_stellar), label=label)
 
     ax.vlines([min_mass, max_mass], 4, 12,
@@ -187,8 +187,8 @@ def plot_stellar_halo_mass(box_num: int,
     ax.legend()
 
     os.makedirs(output_dir, exist_ok=True)
-    tag = f"Run_{box_num}_" if box_num is not None else ""
-    outname = os.path.join(output_dir, f"{tag}Halo_Stellar_mass_alt.png")
+    tag = f"_{data_dir}" if data_dir is not None else ""
+    outname = os.path.join(output_dir, f"Halo_Stellar_mass{tag}.png")
     fig.savefig(outname, bbox_inches="tight")
     plt.close(fig)
 

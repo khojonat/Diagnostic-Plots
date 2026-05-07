@@ -9,7 +9,7 @@ import numpy as np
 
 def plot_rotation_curve(
     rot_curve_file: str,
-    box_num: int,
+    data_dir: str,
     output_dir: str = "Plots",
 ) -> str:
     """
@@ -19,9 +19,9 @@ def plot_rotation_curve(
     Parameters
     ----------
     rot_curve_file : str
-        Path to the HDF5 file created by load_sim_data.compute_rotation_curve_and_save.
-    box_num : int
-        Box identifier for labeling and output filename.
+        Path to the HDF5 file created by helpers.compute_rotation_curve_and_save.
+    data_dir : str
+        Simulation data directory for labeling and output filename.
     output_dir : str, optional
         Directory where the rotation-curve plot PNG will be saved.
 
@@ -76,7 +76,7 @@ def plot_rotation_curve(
     fig.subplots_adjust(hspace=0.0)
 
     os.makedirs(output_dir, exist_ok=True)
-    outname = os.path.join(output_dir, f"FIRE2_MW_run{box_num}_rotation_curve2.png")
+    outname = os.path.join(output_dir, f"rotation_curve2_{data_dir}.png")
     fig.savefig(outname, bbox_inches="tight")
     plt.close(fig)
 

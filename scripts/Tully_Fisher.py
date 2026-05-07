@@ -52,7 +52,7 @@ FIRE_boxes = np.array([
 
 def plot_tully_fisher(
     rot_curve_file: str,
-    box_num: int,
+    data_dir: str,
     output_dir: str = "Plots",
 ) -> str:
     """
@@ -63,8 +63,8 @@ def plot_tully_fisher(
     ----------
     rot_curve_file : str
         Path to the HDF5 file containing rotation curve and cumulative mass data.
-    box_num : int
-        Box identifier for labeling and output filename.
+    data_dir : str
+        Simulation data directory for labeling and output filename.
     output_dir : str, optional
         Directory where the Tully–Fisher plot PNG will be saved.
 
@@ -87,7 +87,7 @@ def plot_tully_fisher(
 
     fig2, axs2 = plt.subplots(figsize=(6, 6))
 
-    axs2.scatter(np.log10(M_stars_total), V_rot_med, label=f"FIRE box {box_num}")
+    axs2.scatter(np.log10(M_stars_total), V_rot_med, label=f"{data_dir}")
     axs2.scatter(FIRE_boxes_x, FIRE_boxes_y, label="El-Badry et al. 2018")
     axs2.plot(SAMI_x, SAMI_y, label="SAMI survey")
     axs2.set_yscale("log")
@@ -98,7 +98,7 @@ def plot_tully_fisher(
     fig2.tight_layout()
 
     os.makedirs(output_dir, exist_ok=True)
-    outname = os.path.join(output_dir, f"FIRE2_MW_run{box_num}_TF.png")
+    outname = os.path.join(output_dir, f"{data_dir}_TullyFisher.png")
     fig2.savefig(outname, bbox_inches="tight")
     plt.close(fig2)
 

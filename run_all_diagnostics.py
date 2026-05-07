@@ -39,9 +39,9 @@ def read_plot_flags(params_path: Path) -> dict:
     return flags
 
 
-def run_all_diagnostics(directory_name: str, snapnum: int):
+def run_all_diagnostics(data_dir: str, snapnum: int):
     """
-    Run all diagnostic plots for a given snapshot directory.
+    Run all diagnostic plots for a given simulation data directory.
     Plot production is controlled by flags in Sim_params.txt.
     """
     from scripts.helpers import identify_target_halo
@@ -50,16 +50,16 @@ def run_all_diagnostics(directory_name: str, snapnum: int):
     plot_flags = read_plot_flags(params_path)
 
     # Identify target halo once
-    target, min_mass, max_mass = identify_target_halo(directory_name, snapnum)
+    target, min_mass, max_mass = identify_target_halo(data_dir, snapnum)
 
-    output_dir = os.path.join(plot_dir, directory_name)
+    output_dir = os.path.join(plot_dir, data_dir)
     os.makedirs(output_dir, exist_ok=True)
 
     results = {}
 
     if plot_flags.get("stellar_halo", 0):
         results["stellar_halo_mass_plot"] = plot_stellar_halo_mass(
-            box_num=box_num,
+            box_num=data_dir,
             snapnum=snapnum,
             target=target,
             min_mass=min_mass,
@@ -71,7 +71,7 @@ def run_all_diagnostics(directory_name: str, snapnum: int):
     rot_curve_file = None
     if rot_needed:
         rot_curve_file = compute_rotation_curve_and_save(
-            box_num=box_num,
+            box_num=data_dir,
             snapnum=snapnum,
             target=target,
             output_dir=os.path.join(output_dir, "sim_data"),
@@ -81,21 +81,21 @@ def run_all_diagnostics(directory_name: str, snapnum: int):
         if plot_flags.get("rot_curve", 0):
             results["rotation_curve_plot"] = plot_rotation_curve(
                 rot_curve_file=rot_curve_file,
-                box_num=box_num,
+                box_num=data_dir,
                 output_dir=output_dir,
             )
 
         if plot_flags.get("Tully_Fisher", 0):
             results["tully_fisher_plot"] = plot_tully_fisher(
                 rot_curve_file=rot_curve_file,
-                box_num=box_num,
+                box_num=data_dir,
                 output_dir=output_dir,
             )
 
     def _component_density(parttype_str: str, label: str, filename: str):
         output_path = os.path.join(output_dir, filename)
         return plot_2d_hist(
-            box_num=box_num,
+            box_num=data_dir,
             snapnum=snapnum,
             parttype={"dm": 1, "gas": 0, "stars": 4}[parttype_str],
             target=target,
@@ -107,24 +107,24 @@ def run_all_diagnostics(directory_name: str, snapnum: int):
 
     if plot_flags.get("DM_density", 0):
         results["dm_density_map"] = _component_density(
-            "dm", f"DM density ({directory_name})", f"FIRE2_MW_{directory_name}_dm_density.png"
+            "dm", f"DM density ({data_dir})", f"FIRE2_MW_{data_dir}_dm_density.png"
         )
 
     if plot_flags.get("gas_density", 0):
         results["gas_density_map"] = _component_density(
-            "gas", f"Gas density ({directory_name})", f"FIRE2_MW_{directory_name}_gas_density.png"
+            "gas", f"Gas density ({data_dir})", f"FIRE2_MW_{data_dir}_gas_density.png"
         )
 
     if plot_flags.get("star_density", 0):
         results["stellar_density_map"] = _component_density(
             "stars",
-            f"Stellar density ({directory_name})",
-            f"FIRE2_MW_{directory_name}_stellar_density.png",
+            f"Stellar density ({data_dir})",
+            f"FIRE2_MW_{data_dir}_stellar_density.png",
         )
 
     if plot_flags.get("SFR_history", 0):
         results["sfr_history_plot"] = plot_sfr_history(
-            box_num=directory_name,
+            box_num=data_dir,
             max_snapnum=snapnum,
             target=target,
             output_dir=output_dir,
@@ -132,7 +132,7 @@ def run_all_diagnostics(directory_name: str, snapnum: int):
 
     if plot_flags.get("Ken_Schmidt", 0):
         results["kennicutt_schmidt_plot"] = plot_kennicutt_schmidt(
-            box_num=directory_name,
+            box_num=data_dir,
             snapnum=snapnum,
             target=target,
             output_dir=output_dir,
@@ -245,12 +245,12 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run diagnostic plots for simulation or test data.\n"
         "Usage: python run_all_diagnostics.py test\n"
-        "       python run_all_diagnostics.py DIRECTORY_NAME SNAP_NUM",
+        "       python run_all_diagnostics.py DATA_DIR SNAP_NUM",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "first_arg",
-        help="Either 'test' for toy galaxy, or DIRECTORY_NAME for production data.",
+        help="Either 'test' for toy galaxy, or DATA_DIR for production data.",
     )
     parser.add_argument(
         "second_arg",
@@ -263,16 +263,16 @@ def _parse_args() -> argparse.Namespace:
     # Determine mode based on arguments
     if args.first_arg == "test":
         args.mode = "test"
-        args.directory_name = None
+        args.data_dir = None
         args.snapnum = None
         if args.second_arg is not None:
             parser.error("Test mode takes no additional arguments.")
     else:
-        args.directory_name = args.first_arg
+        args.data_dir = args.first_arg
         if args.second_arg is None:
             parser.error(
-                "Production mode requires both DIRECTORY_NAME and SNAP_NUM.\n"
-                "Usage: python run_all_diagnostics.py DIRECTORY_NAME SNAP_NUM"
+                "Production mode requires both DATA_DIR and SNAP_NUM.\n"
+                "Usage: python run_all_diagnostics.py DATA_DIR SNAP_NUM"
             )
         try:
             args.snapnum = int(args.second_arg)
@@ -290,7 +290,7 @@ def main() -> None:
         results = run_test_diagnostics()
     elif args.mode == "production":
         results = run_all_diagnostics(
-            directory_name=args.directory_name,
+            data_dir=args.data_dir,
             snapnum=args.snapnum,
         )
 

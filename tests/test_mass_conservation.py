@@ -178,7 +178,7 @@ def plot_histograms(result: dict, output_dir: str, prefix: str = "") -> list:
 
 
 def run_mass_conservation_tests(
-    snap_path: str, parttype: int = None, box_num: int = None, snapnum: int = None
+    snap_path: str, parttype: int = None, data_dir: int = None, snapnum: int = None
 ) -> dict:
     """
     Run mass conservation tests for specified particle type(s).
@@ -189,7 +189,7 @@ def run_mass_conservation_tests(
         Path to the HDF5 snapshot file.
     parttype : int, optional
         Specific particle type to test. If None, tests all types.
-    box_num : int, optional
+    data_dir : int, optional
         Box number (for output directory naming).
     snapnum : int, optional
         Snapshot number (for output directory naming).
@@ -204,9 +204,9 @@ def run_mass_conservation_tests(
     results = {}
 
     # Determine output directory
-    if box_num is not None:
-        output_dir = os.path.join("Plots", str(box_num))
-        prefix = f"{box_num}_snap{snapnum:03d}_"
+    if data_dir is not None:
+        output_dir = os.path.join("Plots", str(data_dir))
+        prefix = f"{data_dir}_snap{snapnum:03d}_"
     else:
         output_dir = os.path.join("Plots", "test")
         prefix = ""
@@ -330,7 +330,7 @@ def main():
         results = run_mass_conservation_tests(
             snap_path,
             parttype=args.parttype,
-            box_num=args.first_arg,
+            data_dir=args.first_arg,
             snapnum=args.snapnum,
         )
 
