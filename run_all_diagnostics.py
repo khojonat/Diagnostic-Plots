@@ -38,6 +38,21 @@ def read_plot_flags(params_path: Path) -> dict:
 
     return flags
 
+def _component_density(parttype_str: str, label: str, filename: str,output_dir,data_dir,snapnum,target):
+    '''
+    Helper to make 2d hist plots
+    '''
+    output_path = os.path.join(output_dir, filename)
+    return plot_2d_hist(
+        data_dir=data_dir,
+        snapnum=snapnum,
+        parttype={"dm": 1, "gas": 0, "stars": 4}[parttype_str],
+        target=target,
+        output_path=output_path,
+        xlabel="x",
+        ylabel="y",
+        title=label,
+    )
 
 def run_all_diagnostics(data_dir: str, snapnum: int):
     """
@@ -92,34 +107,21 @@ def run_all_diagnostics(data_dir: str, snapnum: int):
                 output_dir=output_dir,
             )
 
-    def _component_density(parttype_str: str, label: str, filename: str):
-        output_path = os.path.join(output_dir, filename)
-        return plot_2d_hist(
-            data_dir=data_dir,
-            snapnum=snapnum,
-            parttype={"dm": 1, "gas": 0, "stars": 4}[parttype_str],
-            target=target,
-            output_path=output_path,
-            xlabel="x",
-            ylabel="y",
-            title=label,
-        )
-
     if plot_flags.get("DM_density", 0):
         results["dm_density_map"] = _component_density(
-            "dm", f"DM density ({data_dir})", f"FIRE2_MW_{data_dir}_dm_density.png"
+            "dm", f"DM density ({data_dir})", f"FIRE2_MW_{data_dir}_dm_density.png", output_dir, data_dir, snapnum, target
         )
 
     if plot_flags.get("gas_density", 0):
         results["gas_density_map"] = _component_density(
-            "gas", f"Gas density ({data_dir})", f"FIRE2_MW_{data_dir}_gas_density.png"
+            "gas", f"Gas density ({data_dir})", f"FIRE2_MW_{data_dir}_gas_density.png", output_dir, data_dir, snapnum, target
         )
 
     if plot_flags.get("star_density", 0):
         results["stellar_density_map"] = _component_density(
             "stars",
             f"Stellar density ({data_dir})",
-            f"FIRE2_MW_{data_dir}_stellar_density.png",
+            f"FIRE2_MW_{data_dir}_stellar_density.png", output_dir, data_dir, snapnum, target
         )
 
     if plot_flags.get("SFR_history", 0):
@@ -157,85 +159,39 @@ def run_test_diagnostics():
     plot_flags = read_plot_flags(params_path)
 
     # Generate test galaxy if needed
-    test_data_dir = Path(__file__).resolve().parent / "sim_data"
-    test_snap_path = test_data_dir / "test_galaxy.hdf5"
+    data_dir = "test_data"
+    snap_path = os.path.join(data_dir, "test_galaxy.hdf5")
 
-    if not test_snap_path.exists():
-        print(f"Generating test galaxy snapshot at {test_snap_path}...")
+    if not os.path.exists(snap_path):
+        print(f"Generating test galaxy snapshot at {snap_path}...")
         create_test_galaxy_snapshot(
-            output_dir=str(test_data_dir), filename="test_galaxy.hdf5"
+            output_dir=str(data_dir), filename="test_galaxy.hdf5"
         )
     else:
-        print(f"Using existing test galaxy snapshot at {test_snap_path}")
+        print(f"Using existing test galaxy snapshot at {snap_path}")
 
     output_dir = os.path.join(plot_dir, "test")
     os.makedirs(output_dir, exist_ok=True)
 
     results = {}
+    snapnum = 'test'
+    target = 0
 
-    # Helper to create 2D density plots directly from test snapshot
-    def _plot_test_density(parttype: int, label: str, filename: str):
-        with h5py.File(test_snap_path, "r") as f:
-            pos_key = f"PartType{parttype}/Coordinates"
-            mass_key = f"PartType{parttype}/Masses"
-
-            if pos_key not in f or mass_key not in f:
-                print(f"Warning: {pos_key} not found in test snapshot")
-                return None
-
-            positions = f[pos_key][:]
-            masses = f[mass_key][:]
-
-        # Create 2D histogram in x-y plane
-        nbins = 512
-        H, xedges, yedges = np.histogram2d(
-            positions[:, 0], positions[:, 1], bins=(nbins, nbins), weights=masses
-        )
-
-        # Convert from code units to physical units (Msun/kpc^2)
-        # H is in code mass per code distance^2, so multiply by unit_mass / unit_distance^2
-        H = H * unit_mass / (unit_distance ** 2)
-
-        fig, ax = plt.subplots(figsize=(6, 6))
-        extent = [xedges[0] * unit_distance, xedges[-1] * unit_distance, yedges[0] * unit_distance, yedges[-1] * unit_distance]
-        im = ax.imshow(
-            H.T,
-            origin="lower",
-            extent=extent,
-            aspect="equal",
-            cmap="viridis",
-            norm="log",
-        )
-
-        ax.set_xlabel("x (kpc)")
-        ax.set_ylabel("y (kpc)")
-        ax.set_title(label)
-
-        cbar = fig.colorbar(im, ax=ax, shrink=0.7)
-        cbar.set_label("Surface Density (Msun/kpc$^2$)")
-
-        fig.tight_layout()
-
-        output_path = os.path.join(output_dir, filename)
-        fig.savefig(output_path, bbox_inches="tight")
-        plt.close(fig)
-
-        return output_path
-
-    # Generate density plots based on flags
     if plot_flags.get("DM_density", 0):
-        results["dm_density_map"] = _plot_test_density(
-            1, "DM density (test)", "test_dm_density.png"
+        results["dm_density_map"] = _component_density(
+            "dm", f"DM density ({data_dir})", f"{data_dir}_dm_density.png", output_dir, data_dir, snapnum, target
         )
 
     if plot_flags.get("gas_density", 0):
-        results["gas_density_map"] = _plot_test_density(
-            0, "Gas density (test)", "test_gas_density.png"
+        results["gas_density_map"] = _component_density(
+            "gas", f"Gas density ({data_dir})", f"{data_dir}_gas_density.png", output_dir, data_dir, snapnum, target
         )
 
     if plot_flags.get("star_density", 0):
-        results["stellar_density_map"] = _plot_test_density(
-            4, "Stellar density (test)", "test_stellar_density.png"
+        results["stellar_density_map"] = _component_density(
+            "stars",
+            f"Stellar density ({data_dir})",
+            f"{data_dir}_stellar_density.png", output_dir, data_dir, snapnum, target
         )
 
     return results
