@@ -19,6 +19,4 @@ module load miniforge  # Loading conda on Rivanna
 conda activate kho_env # Change to your conda env
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
-export SNAP_NUM=90
-
-python run_all_diagnostics.py $SLURM_ARRAY_TASK_ID $SNAP_NUM 
+python run_all_diagnostics.py $SLURM_ARRAY_TASK_ID

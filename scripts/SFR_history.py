@@ -12,13 +12,13 @@ import astropy.units as u
 from .helpers import code, halo_particle_bounds, loadHalos, snapshot_base, _normalize_run_dir
 
 
-def _find_snapshot_file(data_dir: str, snapnum: int) -> str | None:
+def _find_snapshot_file(run_num: int, snapnum: int) -> str | None:
     """
     Locate a snapshot file for a given snapshot number, trying both
     snapdir_XXX/snap_XXX.hdf5 and snap_XXX.hdf5 in sim_path.
     Returns None if no file is found.
     """
-    path = os.path.join(snapshot_base, _normalize_run_dir(data_dir))
+    path = os.path.join(snapshot_base, _normalize_run_dir(run_num))
     snapdir = os.path.join(path, f"snapdir_{snapnum:03d}")
     if os.path.isdir(snapdir):
         snapfile = os.path.join(snapdir, f"snap_{snapnum:03d}.hdf5")
@@ -33,7 +33,7 @@ def _find_snapshot_file(data_dir: str, snapnum: int) -> str | None:
 
 
 def plot_sfr_history(
-    data_dir: str,
+    run_num: int,
     max_snapnum: int,
     target: int,
     output_dir: str = "Plots",
@@ -52,8 +52,8 @@ def plot_sfr_history(
 
     Parameters
     ----------
-    data_dir : str
-        Simulation data directory for labeling and filenames.
+    run_num : int
+        Simulation run number for labeling and filenames.
     max_snapnum : int
         Highest snapshot number to consider (0..max_snapnum will be scanned).
     target : int
@@ -70,7 +70,7 @@ def plot_sfr_history(
     sfr_values = []
 
     for snap in range(max_snapnum + 1):
-        snapfile = _find_snapshot_file(data_dir, snap)
+        snapfile = _find_snapshot_file(run_num, snap)
         if snapfile is None:
             continue
 
@@ -84,7 +84,7 @@ def plot_sfr_history(
                         continue
                     sfr = np.sum(gas_data["StarFormationRate"])
                 elif "PartType0" in f and "StarFormationRate" in f["PartType0"]:
-                    halo_length = loadHalos(data_dir, snap, 'GroupLenType')
+                    halo_length = loadHalos(run_num, snap, 'GroupLenType')
                     start, end = halo_particle_bounds(halo_length, target, 0)
                     sfr_all = f["PartType0"]["StarFormationRate"][:]
                     sfr = np.sum(sfr_all[start:end])
@@ -111,7 +111,7 @@ def plot_sfr_history(
                     star_ages = star_data["StellarFormationTime"]
                     star_masses = star_data["Masses"]
                 elif "PartType4" in f and "StellarFormationTime" in f["PartType4"]:
-                    halo_length = loadHalos(data_dir, snap, 'GroupLenType')
+                    halo_length = loadHalos(run_num, snap, 'GroupLenType')
                     start, end = halo_particle_bounds(halo_length, target, 4)
                     star_ages = f["PartType4"]["StellarFormationTime"][start:end]
                     star_masses = f["PartType4"]["Masses"][start:end]
@@ -156,15 +156,13 @@ def plot_sfr_history(
     ax.set_ylabel(r"Total SFR [$\rm M_\odot/yr$]",fontsize=15)
     ax.set_yscale("log")
     title = "Star Formation History"
-    if data_dir is not None:
-        title += f" (box {data_dir})"
+    title += f" (run_{run_num})"
     ax.set_title(title,fontsize=15)
 
     if owns_figure:
         fig.tight_layout()
         os.makedirs(output_dir, exist_ok=True)
-        tag = f"_{data_dir}" if data_dir is not None else ""
-        outname = os.path.join(output_dir, f"SFR_history{tag}{filename_suffix}.png")
+        outname = os.path.join(output_dir, f"SFR_history_run_{run_num}{filename_suffix}.png")
         fig.savefig(outname, bbox_inches="tight")
         plt.close(fig)
     else:

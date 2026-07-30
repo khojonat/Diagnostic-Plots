@@ -81,7 +81,7 @@ def _compute_annular_surface_densities(
 
 
 def plot_kennicutt_schmidt(
-    data_dir: str,
+    run_num: int,
     snapnum: int,
     target: int,
     r_max: float | None = None,
@@ -100,8 +100,8 @@ def plot_kennicutt_schmidt(
 
     Parameters
     ----------
-    data_dir : str
-        Simulation data directory for labeling and filenames.
+    run_num : int
+        Simulation run number for labeling and filenames.
     snapnum : int
         Snapshot number to analyze.
     target : int
@@ -122,11 +122,11 @@ def plot_kennicutt_schmidt(
         halo_pos = particle_data["halo_pos"]
         header_attrs = particle_data["header"]
     else:
-        halo_length = loadHalos(data_dir, snapnum, 'GroupLenType')
+        halo_length = loadHalos(run_num, snapnum, 'GroupLenType')
         start_gas, end_gas = halo_particle_bounds(halo_length, target, 0)
         start_stars, end_stars = halo_particle_bounds(halo_length, target, 4)
-        halo_pos = loadHalos(data_dir, snapnum, 'GroupPos')[target]
-        snapfile = _find_snapshot_file(data_dir, snapnum)
+        halo_pos = loadHalos(run_num, snapnum, 'GroupPos')[target]
+        snapfile = _find_snapshot_file(run_num, snapnum)
         if snapfile is None:
             raise RuntimeError(f"Snapshot file for snapnum {snapnum} not found.")
         with h5py.File(snapfile, "r") as f:
@@ -147,7 +147,7 @@ def plot_kennicutt_schmidt(
         else:
             # Load gas properties: mass, positions, and instantaneous SFR
             data_gas = load_particles(
-                data_dir,
+                run_num,
                 "gas",
                 fields=["Masses", "Coordinates", "StarFormationRate"],
                 snapnum=snapnum,
@@ -198,7 +198,7 @@ def plot_kennicutt_schmidt(
         else:
             # Load gas for sigma_gas
             data_gas = load_particles(
-                data_dir,
+                run_num,
                 "gas",
                 fields=["Masses", "Coordinates"],
                 snapnum=snapnum,
@@ -210,7 +210,7 @@ def plot_kennicutt_schmidt(
 
             # Load stars for sigma_sfr
             data_stars = load_particles(
-                data_dir,
+                run_num,
                 "stars",
                 fields=["Masses", "Coordinates", "StellarFormationTime"],
                 snapnum=snapnum,
@@ -291,16 +291,14 @@ def plot_kennicutt_schmidt(
     ax.set_xlabel(r"$\log \Sigma_{\rm gas}\ [{\rm M_\odot\,kpc^{-2}}]$",fontsize=15)
     ax.set_ylabel(r"$\log \Sigma_{\rm SFR}\ [{\rm M_\odot\,yr^{-1}\,kpc^{-2}}]$",fontsize=15)
     title = "Kennicutt–Schmidt relation"
-    if data_dir is not None:
-        title += f" ({data_dir})"
+    title += f" (run_{run_num})"
     ax.set_title(title,fontsize=15)
     ax.legend()
 
     if owns_figure:
         fig.tight_layout()
         os.makedirs(output_dir, exist_ok=True)
-        tag = f"_{data_dir}" if data_dir is not None else ""
-        outname = os.path.join(output_dir, f"Kennicutt_Schmidt{tag}{filename_suffix}.png")
+        outname = os.path.join(output_dir, f"Kennicutt_Schmidt_run_{run_num}{filename_suffix}.png")
         fig.savefig(outname, bbox_inches="tight")
         plt.close(fig)
     else:

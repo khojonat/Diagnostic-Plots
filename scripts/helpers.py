@@ -440,7 +440,7 @@ def compute_rotation_curve_and_save(
     compiled data in an HDF5 file for later use (e.g. Tully–Fisher plots).
     Code originally from Alex Garcia. Adapted for this project.
 
-    The output file is saved as sim_data/Run_<data_dir>_rot.hdf5 by default.
+    The output file is saved as sim_data/Run_run_<run_num>_rot.hdf5 by default.
     """
     os.makedirs(output_dir, exist_ok=True)
 
@@ -467,7 +467,7 @@ def compute_rotation_curve_and_save(
 
     else:
         # Identify target halo
-        # target = identify_target_halo(data_dir, snapnum)
+        # target = identify_target_halo(run_num, snapnum)
         halo_length = loadHalos(run_num, snapnum, 'GroupLenType')
         halo_pos = loadHalos(run_num, snapnum, 'GroupPos')[target]
 

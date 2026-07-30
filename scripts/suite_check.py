@@ -19,15 +19,15 @@ def _load_sobol(sobol_path: str | Path) -> np.ndarray:
     return np.atleast_2d(sobol)
 
 
-def plot_suite_check(axs, data_dir: str | int, sobol_path: str | Path, hubble: float) -> None:
-    """Plot the suite Sobol distributions and highlight ``data_dir`` in red.
+def plot_suite_check(axs, run_num: int, sobol_path: str | Path, hubble: float) -> None:
+    """Plot the suite Sobol distributions and highlight ``run_num`` in red.
 
     Parameters
     ----------
     axs
         A 2-by-3 array of Matplotlib axes owned by the caller.
-    data_dir
-        Diagnosed run identifier, either an integer or a name like ``run_12``.
+    run_num
+        Diagnosed simulation run number.
     sobol_path
         Full path to ``sobol_params.txt``.
     hubble
@@ -41,7 +41,7 @@ def plot_suite_check(axs, data_dir: str | int, sobol_path: str | Path, hubble: f
     if sobol.shape[1] < 10:
         raise ValueError(f"Sobol table {sobol_path} must contain at least 10 columns.")
 
-    run_index = _parse_run_index(data_dir)
+    run_index = _parse_run_index(run_num)
     if not 0 <= run_index < len(sobol):
         raise IndexError(
             f"Run index {run_index} is outside the Sobol table (0-{len(sobol) - 1})."
