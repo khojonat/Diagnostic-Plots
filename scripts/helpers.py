@@ -1,5 +1,6 @@
 from os.path import isfile
 import os
+import re
 
 import h5py 
 import numpy as np
@@ -169,13 +170,13 @@ def find_snapshot_from_redshift(path, target_z):
     return snapnums[np.argmin(np.abs(redshifts - target_z))]
     
 
-def load_particles(data_dir, parttype, fields, redshift=None,
+def load_particles(run_num, parttype, fields, redshift=None,
                    snapnum=None, verbose=True):
     """
     Load particle fields from AREPO or GIZMO snapshots
     using raw HDF5 access.
     """
-    path = os.path.join(snapshot_base, _normalize_run_dir(data_dir))
+    path = os.path.join(snapshot_base, _normalize_run_dir(run_num))
 
     if isinstance(parttype, str):
         try:
@@ -200,7 +201,7 @@ def load_particles(data_dir, parttype, fields, redshift=None,
     # Locate snapshot file
     # ---------------------------------------
     if snapnum == 'test':
-        snapfile = os.path.join(data_dir,'test_galaxy.hdf5')
+        snapfile = os.path.join(run_num, 'test_galaxy.hdf5')
     
     else:
         snapdir = os.path.join(path, f"snapdir_{snapnum:03d}")
@@ -238,12 +239,12 @@ def load_particles(data_dir, parttype, fields, redshift=None,
     return data
 
 
-def snapshot_file_path(data_dir: str, snapnum: int) -> str:
+def snapshot_file_path(run_num: int, snapnum: int) -> str:
     """
     Locate a snapshot file for a run, trying both snapdir_XXX/snap_XXX.hdf5
     and snap_XXX.hdf5 directly under the run directory.
     """
-    path = os.path.join(snapshot_base, _normalize_run_dir(data_dir))
+    path = os.path.join(snapshot_base, _normalize_run_dir(run_num))
     snapdir = os.path.join(path, f"snapdir_{snapnum:03d}")
     if os.path.isdir(snapdir):
         snapfile = os.path.join(snapdir, f"snap_{snapnum:03d}.hdf5")
@@ -254,7 +255,28 @@ def snapshot_file_path(data_dir: str, snapnum: int) -> str:
     if os.path.exists(snapfile):
         return snapfile
 
-    raise FileNotFoundError(f"Snapshot file not found for {data_dir}, snap {snapnum}")
+    raise FileNotFoundError(f"Snapshot file not found for run {run_num}, snap {snapnum}")
+
+
+def latest_snapshot_num(run_num: int) -> int:
+    """Return the highest numbered snapshot present in ``snapshot_base/run_N``."""
+    path = os.path.join(snapshot_base, _normalize_run_dir(run_num))
+    if not os.path.isdir(path):
+        raise FileNotFoundError(f"Run directory not found: {path}")
+
+    snapshots = set()
+    for entry in os.listdir(path):
+        direct_match = re.fullmatch(r"snap_(\d+)\.hdf5", entry)
+        directory_match = re.fullmatch(r"snapdir_(\d+)", entry)
+        if direct_match:
+            snapshots.add(int(direct_match.group(1)))
+        elif directory_match:
+            candidate = os.path.join(path, entry, f"snap_{directory_match.group(1)}.hdf5")
+            if os.path.isfile(candidate):
+                snapshots.add(int(directory_match.group(1)))
+    if not snapshots:
+        raise FileNotFoundError(f"No snapshots found in {path}")
+    return max(snapshots)
 
 
 def halo_particle_bounds(halo_length: np.ndarray, target: int, parttype: int):
@@ -265,7 +287,7 @@ def halo_particle_bounds(halo_length: np.ndarray, target: int, parttype: int):
 
 
 def load_target_halo_particle_data(
-    data_dir: str,
+    run_num: int,
     snapnum: int,
     target: int,
     parttypes=(0, 1, 2, 4),
@@ -280,12 +302,12 @@ def load_target_halo_particle_data(
     each particle type is independently permuted in memory after all requested
     fields for that type have been sliced to the target halo.
     """
-    halo_length = loadHalos(data_dir, snapnum, "GroupLenType")
-    halo_pos = loadHalos(data_dir, snapnum, "GroupPos")[target]
+    halo_length = loadHalos(run_num, snapnum, "GroupLenType")
+    halo_pos = loadHalos(run_num, snapnum, "GroupPos")[target]
     rng = np.random.default_rng(seed)
     particles = {}
 
-    with h5py.File(snapshot_file_path(data_dir, snapnum), "r") as f:
+    with h5py.File(snapshot_file_path(run_num, snapnum), "r") as f:
         header = dict(f["Header"].attrs.items())
 
         for parttype in parttypes:
@@ -310,7 +332,7 @@ def load_target_halo_particle_data(
                         particles[parttype][field] = dataset[start:end][order]
 
     return {
-        "data_dir": data_dir,
+        "run_num": run_num,
         "snapnum": snapnum,
         "target": target,
         "header": header,
@@ -320,13 +342,13 @@ def load_target_halo_particle_data(
     }
 
 
-def identify_target_halo(data_dir,snapnum):
+def identify_target_halo(run_num, snapnum):
     ''' Identifies a target halo of a given mass '''
     
     sobol_path = _sim_params.get("sobol_path", "").strip()
     
     if sobol_path and sobol_path != "0":
-        sobol = read_sobol(data_dir, sobol_path)
+        sobol = read_sobol(run_num, sobol_path)
         Mtarget = sobol[0]
     else:
         Mtarget = float(_sim_params.get("target_log_mass", 11.5))
@@ -335,13 +357,13 @@ def identify_target_halo(data_dir,snapnum):
     min_mass = Mtarget - 0.1 * 2 # Doubling tolerance to try to catch valid halo
     max_mass = Mtarget + 0.1 * 2
     
-    path = os.path.join(snapshot_base, _normalize_run_dir(data_dir))
+    path = os.path.join(snapshot_base, _normalize_run_dir(run_num))
     with h5py.File(os.path.join(path, f"snap_{snapnum:03d}.hdf5"), "r") as f:
 
         Header = f['Header']
         h = Header.attrs['HubbleParam']
     
-    halo_masses = loadHalos(data_dir,snapnum,'GroupMassType') * 1e10 / h
+    halo_masses = loadHalos(run_num, snapnum, 'GroupMassType') * 1e10 / h
 
     DM1_masses  = halo_masses[:,1]
     DM2_masses  = halo_masses[:,2]
@@ -364,7 +386,7 @@ def identify_target_halo(data_dir,snapnum):
     
         # If they're all contaminated, just take the least contaminated halo in the mass range
         if i == len(valid) - 1:
-            print(f'{_normalize_run_dir(data_dir)}: All valid halos are contaminated')
+            print(f'{_normalize_run_dir(run_num)}: All valid halos are contaminated')
             target = valid[np.argmin(all_contam)]
             break
             
@@ -405,7 +427,7 @@ def split_paired_array(arr, first_is_x: bool = True):
 
 
 def compute_rotation_curve_and_save(
-    data_dir: str,
+    run_num: int,
     snapnum: int,
     target: int,
     output_dir: str = "sim_data",
@@ -446,10 +468,10 @@ def compute_rotation_curve_and_save(
     else:
         # Identify target halo
         # target = identify_target_halo(data_dir, snapnum)
-        halo_length = loadHalos(data_dir, snapnum, 'GroupLenType')
-        halo_pos = loadHalos(data_dir, snapnum, 'GroupPos')[target]
+        halo_length = loadHalos(run_num, snapnum, 'GroupLenType')
+        halo_pos = loadHalos(run_num, snapnum, 'GroupPos')[target]
 
-        with h5py.File(snapshot_file_path(data_dir, snapnum), "r") as f:
+        with h5py.File(snapshot_file_path(run_num, snapnum), "r") as f:
             header = f["Header"]
             boxsize = header.attrs["BoxSize"]
 
@@ -542,7 +564,7 @@ def compute_rotation_curve_and_save(
     vrot_stars_only = np.sqrt(G * cum_mass_stars_only_kg / rs_m) / 1000.0
 
     # Store original rs in kpc for plotting convenience
-    run_name = _normalize_run_dir(data_dir).replace(os.sep, "_")
+    run_name = _normalize_run_dir(run_num).replace(os.sep, "_")
     outpath = os.path.join(output_dir, f"Run_{run_name}_rot{filename_suffix}.hdf5")
     with h5py.File(outpath, "w") as f_out:
         f_out.create_dataset("rs", data=rs)
@@ -586,10 +608,10 @@ def gcPath(basePath, snapNum):
         return filePath1
     return filePath2
 
-def loadHalos(data_dir, snapNum, fields=None):
+def loadHalos(run_num, snapNum, fields=None):
     """ Load all halo information from the entire group catalog for one snapshot
        (optionally restrict to a subset given by fields). """
-    basePath = os.path.join(fof_sub_base, _normalize_run_dir(data_dir)) + os.sep
+    basePath = os.path.join(fof_sub_base, _normalize_run_dir(run_num)) + os.sep
     return loadObjects(basePath, snapNum, "Group", "groups", fields)
 
 def loadObjects(basePath, snapNum, gName, nName, fields):
