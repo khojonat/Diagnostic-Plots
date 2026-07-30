@@ -8,7 +8,7 @@ import numpy as np
 from .helpers import load_particles, identify_target_halo, loadHalos, unit_mass, unit_distance
 
 def plot_2d_hist(
-    data_dir,
+    run_num,
     snapnum,
     parttype,
     target: int,
@@ -26,8 +26,8 @@ def plot_2d_hist(
 
     Parameters
     ----------
-    data_dir: str
-        Simulation data directory.
+    run_num: int
+        Simulation run number; files are read from ``snapshot_base/run_<run_num>``.
     snapnum: int
         Snapshot number for the simulation. Can alternatively be set to 'test'
     parttype: int
@@ -58,10 +58,10 @@ def plot_2d_hist(
     # Identifying target particles:
     elif snapnum != 'test':
         
-        Particle_positions = load_particles(data_dir, parttype, ['Coordinates'], snapnum=snapnum)
-        Particle_Masses = load_particles(data_dir, parttype, ['Masses'], snapnum=snapnum)
+        Particle_positions = load_particles(run_num, parttype, ['Coordinates'], snapnum=snapnum)
+        Particle_Masses = load_particles(run_num, parttype, ['Masses'], snapnum=snapnum)
     
-        halo_length = loadHalos(data_dir,snapnum,'GroupLenType')
+        halo_length = loadHalos(run_num, snapnum, 'GroupLenType')
     
         # Using halo lengths to index DM particles
         Particle_positions = Particle_positions['Coordinates'][np.sum(halo_length[:target,parttype]):np.sum(halo_length[:target,parttype]) + halo_length[target,parttype]]
@@ -69,8 +69,8 @@ def plot_2d_hist(
 
     else:
 
-        Particle_positions = load_particles(data_dir, parttype, ['Coordinates'], snapnum='test')['Coordinates']
-        Particle_Masses = load_particles(data_dir, parttype, ['Masses'], snapnum='test')['Masses']
+        Particle_positions = load_particles(run_num, parttype, ['Coordinates'], snapnum='test')['Coordinates']
+        Particle_Masses = load_particles(run_num, parttype, ['Masses'], snapnum='test')['Masses']
         
 
     # print(Particle_positions)
