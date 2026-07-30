@@ -19,7 +19,8 @@ def plot_2d_hist(
     title: str | None = None,
     cmap: str = "viridis",
     particle_data: dict | None = None,
-) -> str:
+    ax=None,
+) -> str | None:
     """
     Produce a 2D histogram (density map) for arbitrary x/y data.
 
@@ -81,7 +82,11 @@ def plot_2d_hist(
     # H is in code mass per code distance^2, so multiply by unit_mass / unit_distance^2
     H = H * unit_mass / (unit_distance ** 2)
 
-    fig, ax = plt.subplots(figsize=(6, 6))
+    owns_figure = ax is None
+    if owns_figure:
+        fig, ax = plt.subplots(figsize=(6, 6))
+    else:
+        fig = ax.figure
 
     extent = [xedges[0] * unit_distance, xedges[-1] * unit_distance, yedges[0] * unit_distance, yedges[-1] * unit_distance]
     im = ax.imshow(
@@ -101,16 +106,17 @@ def plot_2d_hist(
     cbar = fig.colorbar(im, ax=ax,shrink=0.6)
     cbar.set_label(r"$\rm M_\odot/kpc^2$",fontsize=15)
 
-    fig.tight_layout()
-
-    if output_path is None:
-        os.makedirs("Plots", exist_ok=True)
-        output_path = os.path.join("Plots", f"PartType{parttype}_density_2d.png")
+    if owns_figure:
+        fig.tight_layout()
+        if output_path is None:
+            os.makedirs("Plots", exist_ok=True)
+            output_path = os.path.join("Plots", f"PartType{parttype}_density_2d.png")
+        else:
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        fig.savefig(output_path, bbox_inches="tight")
+        plt.close(fig)
     else:
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-    fig.savefig(output_path, bbox_inches="tight")
-    plt.close(fig)
+        output_path = None
 
     return output_path
 

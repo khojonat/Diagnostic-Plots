@@ -89,7 +89,8 @@ def plot_kennicutt_schmidt(
     output_dir: str = "Plots",
     particle_data: dict | None = None,
     filename_suffix: str = "",
-) -> str:
+    ax=None,
+) -> str | None:
     """
     Compute and plot the Kennicutt–Schmidt relation for the target halo.
 
@@ -261,7 +262,11 @@ def plot_kennicutt_schmidt(
     sigma_gas = sigma_gas[good]
     sigma_sfr = sigma_sfr[good]
     
-    fig, ax = plt.subplots(figsize=(6, 6))
+    owns_figure = ax is None
+    if owns_figure:
+        fig, ax = plt.subplots(figsize=(6, 6))
+    else:
+        fig = ax.figure
 
     KE12_x, KE12_y = split_paired_array(Kennicut_Evans_2012, first_is_x=True)
     ax.plot(KE12_x, KE12_y, label=r"Kennicut+Evans 2012, N=1.4")
@@ -291,13 +296,15 @@ def plot_kennicutt_schmidt(
     ax.set_title(title,fontsize=15)
     ax.legend()
 
-    fig.tight_layout()
-
-    os.makedirs(output_dir, exist_ok=True)
-    tag = f"_{data_dir}" if data_dir is not None else ""
-    outname = os.path.join(output_dir, f"Kennicutt_Schmidt{tag}{filename_suffix}.png")
-    fig.savefig(outname, bbox_inches="tight")
-    plt.close(fig)
+    if owns_figure:
+        fig.tight_layout()
+        os.makedirs(output_dir, exist_ok=True)
+        tag = f"_{data_dir}" if data_dir is not None else ""
+        outname = os.path.join(output_dir, f"Kennicutt_Schmidt{tag}{filename_suffix}.png")
+        fig.savefig(outname, bbox_inches="tight")
+        plt.close(fig)
+    else:
+        outname = None
 
     return outname
 

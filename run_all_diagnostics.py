@@ -1,7 +1,13 @@
 import argparse
 import os
 import sys
+from functools import partial
 from pathlib import Path
+
+import matplotlib
+
+matplotlib.use("agg")
+import matplotlib.pyplot as plt
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -11,76 +17,73 @@ from scripts.rotation_curve import plot_rotation_curve
 from scripts.density_2d import plot_2d_hist
 from scripts.SFR_history import plot_sfr_history
 from scripts.Kennicutt_Schmidt import plot_kennicutt_schmidt
-from scripts.helpers import compute_rotation_curve_and_save, plot_dir, unit_mass, unit_distance
+from scripts.suite_check import plot_suite_check
+from scripts.helpers import Hubbleparam, _sim_params, compute_rotation_curve_and_save, plot_dir
 
 
 def read_plot_flags(params_path: Path) -> dict:
     flags = {}
     if not params_path.exists():
         raise FileNotFoundError(f"Sim_params.txt not found at {params_path}")
-
     with params_path.open("r") as fh:
         for line in fh:
             line = line.strip()
-            if not line or line.startswith("#"):
+            if not line or line.startswith("#") or "=" not in line:
                 continue
-            if "=" not in line:
-                continue
-
             key, value = line.split("=", 1)
-            key = key.strip()
-            value = value.strip().split()[0]
-
             try:
-                flags[key] = int(value)
+                flags[key.strip()] = int(value.strip().split()[0])
             except ValueError:
                 continue
-
     return flags
 
-def _component_density(
-    parttype_str: str,
-    label: str,
-    filename: str,
-    output_dir,
-    data_dir,
-    snapnum,
-    target,
-    particle_data: dict | None = None,
-):
-    '''
-    Helper to make 2d hist plots
-    '''
-    output_path = os.path.join(output_dir, filename)
+
+def _component_density(parttype_str, label, filename, output_dir, data_dir, snapnum, target,
+                       particle_data=None, ax=None):
     return plot_2d_hist(
         data_dir=data_dir,
         snapnum=snapnum,
         parttype={"dm": 1, "gas": 0, "stars": 4}[parttype_str],
         target=target,
-        output_path=output_path,
+        output_path=None if ax is not None else os.path.join(output_dir, filename),
         xlabel="x",
         ylabel="y",
         title=label,
         particle_data=particle_data,
+        ax=ax,
     )
 
-def run_all_diagnostics(
-    data_dir: str,
-    snapnum: int,
-    particle_data: dict | None = None,
-    output_subdir: str | None = None,
-    filename_suffix: str = "",
-):
-    """
-    Run all diagnostic plots for a given simulation data directory.
-    Plot production is controlled by flags in Sim_params.txt.
-    """
+
+def _dashboard_figure(panel_count: int, include_sobol: bool):
+    """Build the shared dashboard and return axes for normal and Sobol panels."""
+    diagnostic_rows = max(1, (panel_count + 2) // 3)
+    row_count = diagnostic_rows + (2 if include_sobol else 0)
+    fig = plt.figure(figsize=(18, 5.5 * diagnostic_rows + (10 if include_sobol else 0)))
+    grid = fig.add_gridspec(row_count, 3, hspace=0.42, wspace=0.32)
+    axes = [fig.add_subplot(grid[index // 3, index % 3]) for index in range(panel_count)]
+    sobol_axes = None
+    if include_sobol:
+        sobol_axes = [
+            [fig.add_subplot(grid[diagnostic_rows + row, col]) for col in range(3)]
+            for row in range(2)
+        ]
+    return fig, axes, sobol_axes
+
+
+def _save_dashboard(fig, output_dir: str, data_dir: str, filename_suffix: str = "") -> str:
+    os.makedirs(output_dir, exist_ok=True)
+    outname = os.path.join(output_dir, f"diagnostics_dashboard_{data_dir}{filename_suffix}.png")
+    fig.savefig(outname, bbox_inches="tight", dpi=150)
+    plt.close(fig)
+    return outname
+
+
+def run_all_diagnostics(data_dir: str, snapnum: int, particle_data: dict | None = None,
+                        output_subdir: str | None = None, filename_suffix: str = ""):
+    """Run all enabled diagnostics into one dashboard for a production run."""
     from scripts.helpers import identify_target_halo
 
-    params_path = Path(__file__).resolve().parent / "Sim_params.txt"
-    plot_flags = read_plot_flags(params_path)
-
-    # Identify target halo once
+    plot_flags = read_plot_flags(Path(__file__).resolve().parent / "Sim_params.txt")
     target, min_mass, max_mass = identify_target_halo(data_dir, snapnum)
     if particle_data is not None:
         target = particle_data.get("target", target)
@@ -88,218 +91,125 @@ def run_all_diagnostics(
     output_dir = os.path.join(plot_dir, data_dir)
     if output_subdir is not None:
         output_dir = os.path.join(output_dir, output_subdir)
-    os.makedirs(output_dir, exist_ok=True)
+
+    panels = []
+    if plot_flags.get("stellar_halo", 0):
+        panels.append(partial(plot_stellar_halo_mass, data_dir=data_dir, snapnum=snapnum,
+                              target=target, min_mass=min_mass, max_mass=max_mass,
+                              output_dir=output_dir, particle_data=particle_data,
+                              filename_suffix=filename_suffix))
 
     results = {}
-
-    if plot_flags.get("stellar_halo", 0):
-        results["stellar_halo_mass_plot"] = plot_stellar_halo_mass(
-            data_dir=data_dir,
-            snapnum=snapnum,
-            target=target,
-            min_mass=min_mass,
-            max_mass=max_mass,
-            output_dir=output_dir,
-            particle_data=particle_data,
-            filename_suffix=filename_suffix,
-        )
-
     rot_needed = plot_flags.get("rot_curve", 0) or plot_flags.get("Tully_Fisher", 0)
-    rot_curve_file = None
     if rot_needed:
         rot_curve_file = compute_rotation_curve_and_save(
-            data_dir=data_dir,
-            snapnum=snapnum,
-            target=target,
-            output_dir=os.path.join(output_dir, "sim_data"),
-            particle_data=particle_data,
+            data_dir=data_dir, snapnum=snapnum, target=target,
+            output_dir=os.path.join(output_dir, "sim_data"), particle_data=particle_data,
             filename_suffix=filename_suffix,
         )
         results["rotation_curve_data"] = rot_curve_file
-
         if plot_flags.get("rot_curve", 0):
-            results["rotation_curve_plot"] = plot_rotation_curve(
-                rot_curve_file=rot_curve_file,
-                data_dir=data_dir,
-                output_dir=output_dir,
-                filename_suffix=filename_suffix,
-            )
-
+            panels.append(partial(plot_rotation_curve, rot_curve_file=rot_curve_file,
+                                  data_dir=data_dir, output_dir=output_dir,
+                                  filename_suffix=filename_suffix))
         if plot_flags.get("Tully_Fisher", 0):
-            results["tully_fisher_plot"] = plot_tully_fisher(
-                rot_curve_file=rot_curve_file,
-                data_dir=data_dir,
-                output_dir=output_dir,
-                filename_suffix=filename_suffix,
-            )
+            panels.append(partial(plot_tully_fisher, rot_curve_file=rot_curve_file,
+                                  data_dir=data_dir, output_dir=output_dir,
+                                  filename_suffix=filename_suffix))
 
-    if plot_flags.get("DM_density", 0):
-        results["dm_density_map"] = _component_density(
-            "dm",
-            f"DM density ({data_dir})",
-            f"FIRE2_MW_{data_dir}_dm_density{filename_suffix}.png",
-            output_dir,
-            data_dir,
-            snapnum,
-            target,
-            particle_data=particle_data,
-        )
-
-    if plot_flags.get("gas_density", 0):
-        results["gas_density_map"] = _component_density(
-            "gas",
-            f"Gas density ({data_dir})",
-            f"FIRE2_MW_{data_dir}_gas_density{filename_suffix}.png",
-            output_dir,
-            data_dir,
-            snapnum,
-            target,
-            particle_data=particle_data,
-        )
-
-    if plot_flags.get("star_density", 0):
-        results["stellar_density_map"] = _component_density(
-            "stars",
-            f"Stellar density ({data_dir})",
-            f"FIRE2_MW_{data_dir}_stellar_density{filename_suffix}.png",
-            output_dir,
-            data_dir,
-            snapnum,
-            target,
-            particle_data=particle_data,
-        )
+    for parttype, flag, label, filename in (
+        ("dm", "DM_density", "DM density", "dm_density"),
+        ("gas", "gas_density", "Gas density", "gas_density"),
+        ("stars", "star_density", "Stellar density", "stellar_density"),
+    ):
+        if plot_flags.get(flag, 0):
+            panels.append(partial(_component_density, parttype, f"{label} ({data_dir})",
+                                  f"FIRE2_MW_{data_dir}_{filename}{filename_suffix}.png",
+                                  output_dir, data_dir, snapnum, target,
+                                  particle_data=particle_data))
 
     if plot_flags.get("SFR_history", 0):
-        results["sfr_history_plot"] = plot_sfr_history(
-            data_dir=data_dir,
-            max_snapnum=snapnum,
-            target=target,
-            output_dir=output_dir,
-            particle_data=particle_data,
-            filename_suffix=filename_suffix,
-        )
-
+        panels.append(partial(plot_sfr_history, data_dir=data_dir, max_snapnum=snapnum,
+                              target=target, output_dir=output_dir, particle_data=particle_data,
+                              filename_suffix=filename_suffix))
     if plot_flags.get("Ken_Schmidt", 0):
-        results["kennicutt_schmidt_plot"] = plot_kennicutt_schmidt(
-            data_dir=data_dir,
-            snapnum=snapnum,
-            target=target,
-            output_dir=output_dir,
-            particle_data=particle_data,
-            filename_suffix=filename_suffix,
-        )
+        panels.append(partial(plot_kennicutt_schmidt, data_dir=data_dir, snapnum=snapnum,
+                              target=target, output_dir=output_dir, particle_data=particle_data,
+                              filename_suffix=filename_suffix))
 
+    sobol_dir = _sim_params.get("sobol_path", "").strip()
+    if not sobol_dir or sobol_dir == "0":
+        raise ValueError("The combined production dashboard requires Sim_params.txt:sobol_path.")
+    fig, axes, sobol_axes = _dashboard_figure(len(panels), include_sobol=True)
+    for panel, ax in zip(panels, axes):
+        panel(ax=ax)
+    plot_suite_check(sobol_axes, data_dir, Path(sobol_dir) / "sobol_params.txt", Hubbleparam)
+    fig.suptitle(f"Diagnostic dashboard: {data_dir}", fontsize=20)
+    results["dashboard"] = _save_dashboard(fig, output_dir, data_dir, filename_suffix)
     return results
 
 
-def run_test_diagnostics():
-    """
-    Run diagnostic plots on the toy test galaxy.
-    Uses test_galaxy.hdf5 and outputs to Plots/test/.
-    """
-    import h5py
-    import matplotlib
-    matplotlib.use("agg")
-    import matplotlib.pyplot as plt
-    import numpy as np
+def run_test_diagnostics(particle_data: dict | None = None, output_subdir: str | None = None,
+                         filename_suffix: str = ""):
+    """Run the enabled toy-galaxy diagnostics in one dashboard, without Sobol panels."""
     from tests.generate_test_galaxy import create_test_galaxy_snapshot
 
-    params_path = Path(__file__).resolve().parent / "Sim_params.txt"
-    plot_flags = read_plot_flags(params_path)
-
-    # Generate test galaxy if needed
-    data_dir = "test_data"
+    plot_flags = read_plot_flags(Path(__file__).resolve().parent / "Sim_params.txt")
+    data_dir, snapnum, target = "test_data", "test", 0
     snap_path = os.path.join(data_dir, "test_galaxy.hdf5")
-
-    if not os.path.exists(snap_path):
+    if particle_data is None and not os.path.exists(snap_path):
         print(f"Generating test galaxy snapshot at {snap_path}...")
-        create_test_galaxy_snapshot(
-            output_dir=str(data_dir), filename="test_galaxy.hdf5"
-        )
-    else:
-        print(f"Using existing test galaxy snapshot at {snap_path}")
+        create_test_galaxy_snapshot(output_dir=data_dir, filename="test_galaxy.hdf5")
 
     output_dir = os.path.join(plot_dir, "test")
-    os.makedirs(output_dir, exist_ok=True)
-
-    results = {}
-    snapnum = 'test'
-    target = 0
-
-    if plot_flags.get("DM_density", 0):
-        results["dm_density_map"] = _component_density(
-            "dm", f"DM density ({data_dir})", f"{data_dir}_dm_density.png", output_dir, data_dir, snapnum, target
-        )
-
-    if plot_flags.get("gas_density", 0):
-        results["gas_density_map"] = _component_density(
-            "gas", f"Gas density ({data_dir})", f"{data_dir}_gas_density.png", output_dir, data_dir, snapnum, target
-        )
-
-    if plot_flags.get("star_density", 0):
-        results["stellar_density_map"] = _component_density(
-            "stars",
-            f"Stellar density ({data_dir})",
-            f"{data_dir}_stellar_density.png", output_dir, data_dir, snapnum, target
-        )
-
-    return results
+    if output_subdir is not None:
+        output_dir = os.path.join(output_dir, output_subdir)
+    panels = []
+    for parttype, flag, label, filename in (
+        ("dm", "DM_density", "DM density", "dm_density"),
+        ("gas", "gas_density", "Gas density", "gas_density"),
+        ("stars", "star_density", "Stellar density", "stellar_density"),
+    ):
+        if plot_flags.get(flag, 0):
+            panels.append(partial(_component_density, parttype, f"{label} ({data_dir})",
+                                  f"{data_dir}_{filename}{filename_suffix}.png", output_dir,
+                                  data_dir, snapnum, target, particle_data=particle_data))
+    fig, axes, _ = _dashboard_figure(len(panels), include_sobol=False)
+    for panel, ax in zip(panels, axes):
+        panel(ax=ax)
+    fig.suptitle("Diagnostic dashboard: test_data", fontsize=20)
+    return {"dashboard": _save_dashboard(fig, output_dir, data_dir, filename_suffix)}
 
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run diagnostic plots for simulation or test data.\n"
+        description="Run a combined diagnostic dashboard for simulation or test data.\n"
         "Usage: python run_all_diagnostics.py test\n"
         "       python run_all_diagnostics.py DATA_DIR SNAP_NUM",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument(
-        "first_arg",
-        help="Either 'test' for toy galaxy, or DATA_DIR for production data.",
-    )
-    parser.add_argument(
-        "second_arg",
-        nargs="?",
-        help="SNAP_NUM for production data (omit for test mode).",
-    )
-
+    parser.add_argument("first_arg", help="Either 'test' for toy galaxy, or DATA_DIR for production data.")
+    parser.add_argument("second_arg", nargs="?", help="SNAP_NUM for production data (omit for test mode).")
     args = parser.parse_args()
-
-    # Determine mode based on arguments
     if args.first_arg == "test":
-        args.mode = "test"
-        args.data_dir = None
-        args.snapnum = None
+        args.mode, args.data_dir, args.snapnum = "test", None, None
         if args.second_arg is not None:
             parser.error("Test mode takes no additional arguments.")
     else:
         args.data_dir = args.first_arg
         if args.second_arg is None:
-            parser.error(
-                "Production mode requires both DATA_DIR and SNAP_NUM.\n"
-                "Usage: python run_all_diagnostics.py DATA_DIR SNAP_NUM"
-            )
+            parser.error("Production mode requires both DATA_DIR and SNAP_NUM.")
         try:
             args.snapnum = int(args.second_arg)
         except ValueError:
             parser.error("SNAP_NUM must be an integer.")
         args.mode = "production"
-
     return args
 
 
 def main() -> None:
     args = _parse_args()
-
-    if args.mode == "test":
-        results = run_test_diagnostics()
-    elif args.mode == "production":
-        results = run_all_diagnostics(
-            data_dir=args.data_dir,
-            snapnum=args.snapnum,
-        )
-
-    # Print a short summary of generated outputs
+    results = run_test_diagnostics() if args.mode == "test" else run_all_diagnostics(args.data_dir, args.snapnum)
     for key, value in results.items():
         print(f"{key}: {value}")
 

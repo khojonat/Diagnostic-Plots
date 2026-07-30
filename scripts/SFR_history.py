@@ -39,7 +39,8 @@ def plot_sfr_history(
     output_dir: str = "Plots",
     particle_data: dict | None = None,
     filename_suffix: str = "",
-) -> str:
+    ax=None,
+) -> str | None:
     """
     Load the star formation history of the (global) system across snapshots
     and plot total SFR as a function of redshift.
@@ -144,7 +145,11 @@ def plot_sfr_history(
     redshifts = redshifts[order]
     sfr_values = sfr_values[order]
 
-    fig, ax = plt.subplots(figsize=(7, 5))
+    owns_figure = ax is None
+    if owns_figure:
+        fig, ax = plt.subplots(figsize=(7, 5))
+    else:
+        fig = ax.figure
     ax.plot(redshifts, sfr_values, marker="o")
 
     ax.set_xlabel("Redshift",fontsize=15)
@@ -155,13 +160,15 @@ def plot_sfr_history(
         title += f" (box {data_dir})"
     ax.set_title(title,fontsize=15)
 
-    fig.tight_layout()
-
-    os.makedirs(output_dir, exist_ok=True)
-    tag = f"_{data_dir}" if data_dir is not None else ""
-    outname = os.path.join(output_dir, f"SFR_history{tag}{filename_suffix}.png")
-    fig.savefig(outname, bbox_inches="tight")
-    plt.close(fig)
+    if owns_figure:
+        fig.tight_layout()
+        os.makedirs(output_dir, exist_ok=True)
+        tag = f"_{data_dir}" if data_dir is not None else ""
+        outname = os.path.join(output_dir, f"SFR_history{tag}{filename_suffix}.png")
+        fig.savefig(outname, bbox_inches="tight")
+        plt.close(fig)
+    else:
+        outname = None
 
     return outname
 

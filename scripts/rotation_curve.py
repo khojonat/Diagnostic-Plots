@@ -12,7 +12,8 @@ def plot_rotation_curve(
     data_dir: str,
     output_dir: str = "Plots",
     filename_suffix: str = "",
-) -> str:
+    ax=None,
+) -> str | None:
     """
     Make a rotation-curve plot from precomputed data stored in an HDF5 file.
     Code originally from Alex Garcia. 
@@ -38,7 +39,11 @@ def plot_rotation_curve(
         vrot_gas_only = f["vrot_gas_only"][:]
         vrot_stars_only = f["vrot_stars_only"][:]
 
-    fig, axs = plt.subplots(figsize=(8, 6))
+    owns_figure = ax is None
+    if owns_figure:
+        fig, axs = plt.subplots(figsize=(8, 6))
+    else:
+        fig, axs = ax.figure, ax
 
     axs.plot(rs, vrot, color="k", lw=2)
     axs.plot(rs, vrot_dm_only, color="r", ls=":")
@@ -50,7 +55,7 @@ def plot_rotation_curve(
         0.90,
         r"${\rm DM}$",
         color="r",
-        transform=plt.gca().transAxes,
+        transform=axs.transAxes,
         ha="right",
     )
     axs.text(
@@ -58,7 +63,7 @@ def plot_rotation_curve(
         0.825,
         r"${\rm Gas}$",
         color="orange",
-        transform=plt.gca().transAxes,
+        transform=axs.transAxes,
         ha="right",
     )
     axs.text(
@@ -66,20 +71,21 @@ def plot_rotation_curve(
         0.75,
         r"${\rm Stars}$",
         color="b",
-        transform=plt.gca().transAxes,
+        transform=axs.transAxes,
         ha="right",
     )
 
     axs.set_xlabel(r"${\rm Radius~[kpc]}$", fontsize=15)
     axs.set_ylabel(r"$V_{\rm rot}~[{\rm km/s}]$", fontsize=15)
 
-    fig.tight_layout()
-    fig.subplots_adjust(hspace=0.0)
-
-    os.makedirs(output_dir, exist_ok=True)
-    outname = os.path.join(output_dir, f"rotation_curve2_{data_dir}{filename_suffix}.png")
-    fig.savefig(outname, bbox_inches="tight")
-    plt.close(fig)
+    if owns_figure:
+        fig.tight_layout()
+        os.makedirs(output_dir, exist_ok=True)
+        outname = os.path.join(output_dir, f"rotation_curve2_{data_dir}{filename_suffix}.png")
+        fig.savefig(outname, bbox_inches="tight")
+        plt.close(fig)
+    else:
+        outname = None
 
     return outname
 

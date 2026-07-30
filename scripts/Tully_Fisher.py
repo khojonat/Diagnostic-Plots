@@ -55,7 +55,8 @@ def plot_tully_fisher(
     data_dir: str,
     output_dir: str = "Plots",
     filename_suffix: str = "",
-) -> str:
+    ax=None,
+) -> str | None:
     """
     Load precomputed rotation-curve data from an HDF5 file and
     produce the Tully–Fisher plot.
@@ -86,7 +87,11 @@ def plot_tully_fisher(
     SAMI_x, SAMI_y = split_paired_array(SAMI, first_is_x=True)
     FIRE_boxes_x, FIRE_boxes_y = split_paired_array(FIRE_boxes, first_is_x=True)
 
-    fig2, axs2 = plt.subplots(figsize=(6, 6))
+    owns_figure = ax is None
+    if owns_figure:
+        fig2, axs2 = plt.subplots(figsize=(6, 6))
+    else:
+        fig2, axs2 = ax.figure, ax
 
     axs2.scatter(np.log10(M_stars_total), V_rot_med, label=f"{data_dir}")
     axs2.scatter(FIRE_boxes_x, FIRE_boxes_y, label="El-Badry et al. 2018")
@@ -96,12 +101,14 @@ def plot_tully_fisher(
     axs2.set_ylabel(r"$\rm v_{rot,gas} [km/s] $", size=15)
     axs2.legend()
     axs2.set_title("Tully-Fisher", size=18)
-    fig2.tight_layout()
-
-    os.makedirs(output_dir, exist_ok=True)
-    outname = os.path.join(output_dir, f"{data_dir}_TullyFisher{filename_suffix}.png")
-    fig2.savefig(outname, bbox_inches="tight")
-    plt.close(fig2)
+    if owns_figure:
+        fig2.tight_layout()
+        os.makedirs(output_dir, exist_ok=True)
+        outname = os.path.join(output_dir, f"{data_dir}_TullyFisher{filename_suffix}.png")
+        fig2.savefig(outname, bbox_inches="tight")
+        plt.close(fig2)
+    else:
+        outname = None
 
     return outname
 
