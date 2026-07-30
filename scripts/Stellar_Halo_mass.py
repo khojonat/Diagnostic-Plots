@@ -144,7 +144,8 @@ def plot_stellar_halo_mass(data_dir: str,
                            output_dir: str = "Plots",
                            verbose: bool = True,
                            particle_data: dict | None = None,
-                           filename_suffix: str = ""):
+                           filename_suffix: str = "",
+                           ax=None) -> str | None:
     """
     Make the stellar–halo mass plot using simulation data loaded
     via helpers.py plus the literature comparison arrays.
@@ -182,7 +183,11 @@ def plot_stellar_halo_mass(data_dir: str,
     # Wang et al.: [x0, y0, x1, y1, ...]
     W21_x, W21_y = split_paired_array(Wang_etal, first_is_x=True)
 
-    fig, ax = plt.subplots(figsize=(8, 6))
+    owns_figure = ax is None
+    if owns_figure:
+        fig, ax = plt.subplots(figsize=(8, 6))
+    else:
+        fig = ax.figure
 
     label = f"Box {data_dir}" if data_dir is not None else "Simulation"
     ax.scatter(np.log10(total_dm), np.log10(total_stellar), label=label)
@@ -198,11 +203,14 @@ def plot_stellar_halo_mass(data_dir: str,
     ax.set_xlabel(r"Halo mass $[M_\odot]$", size=15)
     ax.legend()
 
-    os.makedirs(output_dir, exist_ok=True)
-    tag = f"_{data_dir}" if data_dir is not None else ""
-    outname = os.path.join(output_dir, f"Halo_Stellar_mass{tag}{filename_suffix}.png")
-    fig.savefig(outname, bbox_inches="tight")
-    plt.close(fig)
+    if owns_figure:
+        os.makedirs(output_dir, exist_ok=True)
+        tag = f"_{data_dir}" if data_dir is not None else ""
+        outname = os.path.join(output_dir, f"Halo_Stellar_mass{tag}{filename_suffix}.png")
+        fig.savefig(outname, bbox_inches="tight")
+        plt.close(fig)
+    else:
+        outname = None
 
     return outname
 

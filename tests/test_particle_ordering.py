@@ -30,10 +30,8 @@ os.makedirs(os.environ["XDG_CACHE_HOME"], exist_ok=True)
 repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root))
 
-from run_all_diagnostics import read_plot_flags, run_all_diagnostics
-from scripts.density_2d import plot_2d_hist
+from run_all_diagnostics import run_all_diagnostics, run_test_diagnostics
 from scripts.helpers import identify_target_halo, load_target_halo_particle_data
-from scripts.helpers import plot_dir
 from tests.generate_test_galaxy import create_test_galaxy_snapshot
 
 
@@ -111,53 +109,11 @@ def run_reordered_test_diagnostics(seed: int = 42) -> dict:
         print(f"Using existing test galaxy snapshot at {snap_path}")
 
     particle_data = _load_reordered_test_particle_data(snap_path, seed=seed)
-    plot_flags = read_plot_flags(repo_root / "Sim_params.txt")
-    output_dir = os.path.join(plot_dir, "test", "ordering_test")
-    os.makedirs(output_dir, exist_ok=True)
-
-    results = {"output_dir": output_dir}
-    data_dir = "test_data"
-
-    if plot_flags.get("DM_density", 0):
-        results["dm_density_map"] = plot_2d_hist(
-            data_dir=data_dir,
-            snapnum="test",
-            parttype=1,
-            target=0,
-            output_path=os.path.join(output_dir, f"{data_dir}_dm_density_reordered.png"),
-            xlabel="x",
-            ylabel="y",
-            title=f"DM density ({data_dir})",
-            particle_data=particle_data,
-        )
-
-    if plot_flags.get("gas_density", 0):
-        results["gas_density_map"] = plot_2d_hist(
-            data_dir=data_dir,
-            snapnum="test",
-            parttype=0,
-            target=0,
-            output_path=os.path.join(output_dir, f"{data_dir}_gas_density_reordered.png"),
-            xlabel="x",
-            ylabel="y",
-            title=f"Gas density ({data_dir})",
-            particle_data=particle_data,
-        )
-
-    if plot_flags.get("star_density", 0):
-        results["stellar_density_map"] = plot_2d_hist(
-            data_dir=data_dir,
-            snapnum="test",
-            parttype=4,
-            target=0,
-            output_path=os.path.join(output_dir, f"{data_dir}_stellar_density_reordered.png"),
-            xlabel="x",
-            ylabel="y",
-            title=f"Stellar density ({data_dir})",
-            particle_data=particle_data,
-        )
-
-    return results
+    return run_test_diagnostics(
+        particle_data=particle_data,
+        output_subdir="ordering_test",
+        filename_suffix="_reordered",
+    )
 
 
 def _parse_args() -> argparse.Namespace:
