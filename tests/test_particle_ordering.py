@@ -7,7 +7,7 @@ orchestration path.
 
 Usage:
     python tests/test_particle_ordering.py test
-    python tests/test_particle_ordering.py DATA_DIR SNAP_NUM [TARGET]
+    python tests/test_particle_ordering.py RUN_NUM [TARGET]
 """
 
 import argparse
@@ -36,8 +36,8 @@ from tests.generate_test_galaxy import create_test_galaxy_snapshot
 
 
 def run_reordered_diagnostics(
-    data_dir: str,
-    snapnum: int,
+    run_num: int,
+    snapnum: int | None = None,
     target: int | None = None,
     seed: int = 42,
 ) -> dict:
@@ -46,10 +46,13 @@ def run_reordered_diagnostics(
     the standard diagnostics with reordered output filenames.
     """
     if target is None:
-        target, _, _ = identify_target_halo(data_dir, snapnum)
+        from scripts.helpers import latest_snapshot_num
+        if snapnum is None:
+            snapnum = latest_snapshot_num(run_num)
+        target, _, _ = identify_target_halo(run_num, snapnum)
 
     particle_data = load_target_halo_particle_data(
-        data_dir=data_dir,
+        run_num=run_num,
         snapnum=snapnum,
         target=target,
         shuffle=True,
@@ -57,7 +60,7 @@ def run_reordered_diagnostics(
     )
 
     return run_all_diagnostics(
-        data_dir=data_dir,
+        run_num=run_num,
         snapnum=snapnum,
         particle_data=particle_data,
         output_subdir="ordering_test",
@@ -126,12 +129,7 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "first_arg",
-        help="Either 'test' for the toy galaxy, or DATA_DIR for production data.",
-    )
-    parser.add_argument(
-        "second_arg",
-        nargs="?",
-        help="SNAP_NUM for production data (omit for test mode).",
+        help="Either 'test' for the toy galaxy, or a production RUN_NUM.",
     )
     parser.add_argument(
         "target",
@@ -150,22 +148,15 @@ def _parse_args() -> argparse.Namespace:
 
     if args.first_arg == "test":
         args.mode = "test"
-        args.data_dir = None
-        args.snapnum = None
-        if args.second_arg is not None:
+        args.run_num = None
+        if args.target is not None:
             parser.error("Test mode takes no additional arguments.")
     else:
         args.mode = "production"
-        args.data_dir = args.first_arg
-        if args.second_arg is None:
-            parser.error(
-                "Production mode requires both DATA_DIR and SNAP_NUM.\n"
-                "Usage: python tests/test_particle_ordering.py DATA_DIR SNAP_NUM [TARGET]"
-            )
         try:
-            args.snapnum = int(args.second_arg)
+            args.run_num = int(args.first_arg)
         except ValueError:
-            parser.error("SNAP_NUM must be an integer.")
+            parser.error("RUN_NUM must be an integer.")
 
     return args
 
@@ -176,8 +167,7 @@ def main() -> int:
         results = run_reordered_test_diagnostics(seed=args.seed)
     else:
         results = run_reordered_diagnostics(
-            data_dir=args.data_dir,
-            snapnum=args.snapnum,
+            run_num=args.run_num,
             target=args.target,
             seed=args.seed,
         )
