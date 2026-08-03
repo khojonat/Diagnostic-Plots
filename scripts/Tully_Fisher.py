@@ -80,8 +80,9 @@ def plot_tully_fisher(
         vrot = f["vrot"][:]
 
     # Convert to stellar mass in Msun and characteristic rotation velocity
-    M_stars_total = cum_mass_stars_only[-1]  # already in Msun in compiled file
-    V_rot_med = float(np.median(vrot))
+    M_stars_total = cum_mass_stars_only[-1] if cum_mass_stars_only.size else np.nan
+    finite_vrot = vrot[np.isfinite(vrot)]
+    V_rot_med = float(np.median(finite_vrot)) if finite_vrot.size else np.nan
 
     # Unpack literature relations
     SAMI_x, SAMI_y = split_paired_array(SAMI, first_is_x=True)
@@ -93,7 +94,8 @@ def plot_tully_fisher(
     else:
         fig2, axs2 = ax.figure, ax
 
-    axs2.scatter(np.log10(M_stars_total), V_rot_med, label=f"run_{run_num}")
+    if np.isfinite(M_stars_total) and M_stars_total > 0 and np.isfinite(V_rot_med) and V_rot_med > 0:
+        axs2.scatter(np.log10(M_stars_total), V_rot_med, label=f"run_{run_num}")
     axs2.scatter(FIRE_boxes_x, FIRE_boxes_y, label="El-Badry et al. 2018")
     axs2.plot(SAMI_x, SAMI_y, label="SAMI survey")
     axs2.set_yscale("log")

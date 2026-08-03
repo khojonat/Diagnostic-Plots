@@ -156,7 +156,12 @@ def run_all_diagnostics(run_num: int, snapnum: int | None = None, particle_data:
         raise ValueError("The combined production dashboard requires Sim_params.txt:sobol_path.")
     fig, axes, sobol_axes = _dashboard_figure(len(panels), include_sobol=True)
     for panel, ax in zip(panels, axes):
-        panel(ax=ax)
+        try:
+            panel(ax=ax)
+        except Exception as exc:
+            print(f"Skipping unavailable diagnostic panel: {exc}")
+            ax.clear()
+            ax.set_axis_off()
     plot_suite_check(sobol_axes, run_num, Path(sobol_dir) / "sobol_params.txt", Hubbleparam)
     fig.suptitle(f"Diagnostic dashboard: run_{run_num} (snapshot {snapnum})", fontsize=20, y=0.99)
     results["dashboard"] = _save_dashboard(fig, output_dir, run_num, filename_suffix)
@@ -187,7 +192,12 @@ def run_test_diagnostics(particle_data: dict | None = None, filename_suffix: str
                                   test_data_path, snapnum, target, particle_data=particle_data))
     fig, axes, _ = _dashboard_figure(len(panels), include_sobol=False)
     for panel, ax in zip(panels, axes):
-        panel(ax=ax)
+        try:
+            panel(ax=ax)
+        except Exception as exc:
+            print(f"Skipping unavailable diagnostic panel: {exc}")
+            ax.clear()
+            ax.set_axis_off()
     fig.suptitle("Diagnostic dashboard: test", fontsize=20, y=0.99)
     return {"dashboard": _save_dashboard(fig, output_dir, "test", filename_suffix)}
 

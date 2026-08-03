@@ -189,8 +189,8 @@ def plot_stellar_halo_mass(run_num: int,
     else:
         fig = ax.figure
 
-    label = f"run_{run_num}"
-    ax.scatter(np.log10(total_dm), np.log10(total_stellar), label=label)
+    if np.isfinite(total_dm) and np.isfinite(total_stellar) and total_dm > 0 and total_stellar > 0:
+        ax.scatter(np.log10(total_dm), np.log10(total_stellar), label=f"run_{run_num}")
 
     ax.vlines([min_mass, max_mass], 2, 12,
               color="red", ls="--", label="Min and Max")
