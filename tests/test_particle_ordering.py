@@ -63,7 +63,6 @@ def run_reordered_diagnostics(
         run_num=run_num,
         snapnum=snapnum,
         particle_data=particle_data,
-        output_subdir="ordering_test",
         filename_suffix="_reordered",
     )
 
@@ -114,7 +113,6 @@ def run_reordered_test_diagnostics(seed: int = 42) -> dict:
     particle_data = _load_reordered_test_particle_data(snap_path, seed=seed)
     return run_test_diagnostics(
         particle_data=particle_data,
-        output_subdir="ordering_test",
         filename_suffix="_reordered",
     )
 

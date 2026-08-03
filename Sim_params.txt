@@ -2,8 +2,10 @@
 fof_sub_base   =  /standard/DREAMS/FOF_Subfind/CDM/FIRE2/SB10/
 snapshot_base  =  /standard/DREAMS/Sims/CDM/FIRE2/SB10/
 
-# Where you want the diagnostic plots to be made
+# Where diagnostic products are written. Dashboard PNGs are written directly
+# into plot_dir; intermediate rotation-curve HDF5 files are written to sim_data_dir.
 plot_dir       =  Plots/
+sim_data_dir   =  sim_data/
 
 # What code was used to produce the sim?
 code           =  gizmo   # arepo

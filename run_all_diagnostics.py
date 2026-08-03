@@ -24,6 +24,7 @@ from scripts.helpers import (
     compute_rotation_curve_and_save,
     latest_snapshot_num,
     plot_dir,
+    sim_data_dir,
 )
 
 
@@ -88,7 +89,7 @@ def _save_dashboard(fig, output_dir: str, run_num: int | str, filename_suffix: s
 
 
 def run_all_diagnostics(run_num: int, snapnum: int | None = None, particle_data: dict | None = None,
-                        output_subdir: str | None = None, filename_suffix: str = ""):
+                        filename_suffix: str = ""):
     """Run all enabled diagnostics for ``snapshot_base/run_<run_num>``.
 
     When ``snapnum`` is omitted, use the highest available snapshot number.
@@ -103,9 +104,7 @@ def run_all_diagnostics(run_num: int, snapnum: int | None = None, particle_data:
     if particle_data is not None:
         target = particle_data.get("target", target)
 
-    output_dir = os.path.join(plot_dir, f"run_{run_num}")
-    if output_subdir is not None:
-        output_dir = os.path.join(output_dir, output_subdir)
+    output_dir = plot_dir
 
     panels = []
     if plot_flags.get("stellar_halo", 0):
@@ -119,7 +118,7 @@ def run_all_diagnostics(run_num: int, snapnum: int | None = None, particle_data:
     if rot_needed:
         rot_curve_file = compute_rotation_curve_and_save(
             run_num=run_num, snapnum=snapnum, target=target,
-            output_dir=os.path.join(output_dir, "sim_data"), particle_data=particle_data,
+            output_dir=sim_data_dir, particle_data=particle_data,
             filename_suffix=filename_suffix,
         )
         results["rotation_curve_data"] = rot_curve_file
@@ -164,8 +163,7 @@ def run_all_diagnostics(run_num: int, snapnum: int | None = None, particle_data:
     return results
 
 
-def run_test_diagnostics(particle_data: dict | None = None, output_subdir: str | None = None,
-                         filename_suffix: str = ""):
+def run_test_diagnostics(particle_data: dict | None = None, filename_suffix: str = ""):
     """Run the enabled toy-galaxy diagnostics in one dashboard, without Sobol panels."""
     from tests.generate_test_galaxy import create_test_galaxy_snapshot
 
@@ -176,9 +174,7 @@ def run_test_diagnostics(particle_data: dict | None = None, output_subdir: str |
         print(f"Generating test galaxy snapshot at {snap_path}...")
         create_test_galaxy_snapshot(output_dir=test_data_path, filename="test_galaxy.hdf5")
 
-    output_dir = os.path.join(plot_dir, "test")
-    if output_subdir is not None:
-        output_dir = os.path.join(output_dir, output_subdir)
+    output_dir = plot_dir
     panels = []
     for parttype, flag, label, filename in (
         ("dm", "DM_density", "DM density", "dm_density"),

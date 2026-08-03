@@ -111,6 +111,7 @@ _sim_params = _read_sim_params()
 snapshot_base = _normalize_path(_sim_params.get("snapshot_base", ""))
 fof_sub_base = _normalize_path(_sim_params.get("fof_sub_base", ""))
 plot_dir = _normalize_path(_sim_params.get("plot_dir", "Plots"))
+sim_data_dir = _normalize_path(_sim_params.get("sim_data_dir", "sim_data"))
 code = _sim_params.get("code", "arepo").strip().lower()
 
 # Parse numeric unit parameters
