@@ -1,6 +1,6 @@
 #--- Standard base directories for FOF/sub and snapshot data ---# 
-fof_sub_base   =  /standard/DREAMS/FOF_Subfind/CDM/varied_mass/FIRE2_SB9/
-snapshot_base  =  /standard/DREAMS/Sims/CDM/varied_mass/FIRE2_SB9/
+fof_sub_base   =  /standard/DREAMS/FOF_Subfind/CDM/FIRE2/SB10/
+snapshot_base  =  /standard/DREAMS/Sims/CDM/FIRE2/SB10/
 
 # Where you want the diagnostic plots to be made
 plot_dir       =  Plots/
@@ -13,7 +13,7 @@ unit_distance  = 1/Hubbleparam # convert to kpc
 
 # Sobol sequence configuration
 # Set to path containing sobol_params.txt, or 0 to disable sobol and use target_log_mass
-sobol_path     =  /project/torrey-group/jkho/FIRE_Mass_varied/hyperparam_files/
+sobol_path     =  /project/torrey-group/jkho/FIRE_Mass_varied_FINAL/hyperparam_files/
 
 # Target halo log mass (only used if sobol_path = 0)
 target_log_mass = 11.5

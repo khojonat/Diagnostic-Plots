@@ -192,7 +192,7 @@ def plot_stellar_halo_mass(run_num: int,
     label = f"run_{run_num}"
     ax.scatter(np.log10(total_dm), np.log10(total_stellar), label=label)
 
-    ax.vlines([min_mass, max_mass], 4, 12,
+    ax.vlines([min_mass, max_mass], 2, 12,
               color="red", ls="--", label="Min and Max")
 
     # ax.scatter(np.log10(R17_x), np.log10(R17_y), label="Read et al. 2017")
