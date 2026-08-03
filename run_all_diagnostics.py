@@ -65,7 +65,9 @@ def _dashboard_figure(panel_count: int, include_sobol: bool):
     diagnostic_rows = max(1, (panel_count + 2) // 3)
     row_count = diagnostic_rows + (2 if include_sobol else 0)
     fig = plt.figure(figsize=(18, 5.5 * diagnostic_rows + (10 if include_sobol else 0)))
-    grid = fig.add_gridspec(row_count, 3, hspace=0.42, wspace=0.32)
+    # Matplotlib's default GridSpec top margin (0.88) leaves a large gap below
+    # the suptitle. Reserve only the small amount needed for the title itself.
+    grid = fig.add_gridspec(row_count, 3, top=0.965, hspace=0.42, wspace=0.32)
     axes = [fig.add_subplot(grid[index // 3, index % 3]) for index in range(panel_count)]
     sobol_axes = None
     if include_sobol:
@@ -157,7 +159,7 @@ def run_all_diagnostics(run_num: int, snapnum: int | None = None, particle_data:
     for panel, ax in zip(panels, axes):
         panel(ax=ax)
     plot_suite_check(sobol_axes, run_num, Path(sobol_dir) / "sobol_params.txt", Hubbleparam)
-    fig.suptitle(f"Diagnostic dashboard: run_{run_num} (snapshot {snapnum})", fontsize=20)
+    fig.suptitle(f"Diagnostic dashboard: run_{run_num} (snapshot {snapnum})", fontsize=20, y=0.99)
     results["dashboard"] = _save_dashboard(fig, output_dir, run_num, filename_suffix)
     return results
 
@@ -190,7 +192,7 @@ def run_test_diagnostics(particle_data: dict | None = None, output_subdir: str |
     fig, axes, _ = _dashboard_figure(len(panels), include_sobol=False)
     for panel, ax in zip(panels, axes):
         panel(ax=ax)
-    fig.suptitle("Diagnostic dashboard: test", fontsize=20)
+    fig.suptitle("Diagnostic dashboard: test", fontsize=20, y=0.99)
     return {"dashboard": _save_dashboard(fig, output_dir, "test", filename_suffix)}
 
 

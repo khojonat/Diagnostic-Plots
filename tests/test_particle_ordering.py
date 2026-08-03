@@ -45,10 +45,10 @@ def run_reordered_diagnostics(
     Identify a target halo, shuffle its particle ordering in memory, and run
     the standard diagnostics with reordered output filenames.
     """
-    if target is None:
+    if snapnum is None:
         from scripts.helpers import latest_snapshot_num
-        if snapnum is None:
-            snapnum = latest_snapshot_num(run_num)
+        snapnum = latest_snapshot_num(run_num)
+    if target is None:
         target, _, _ = identify_target_halo(run_num, snapnum)
 
     particle_data = load_target_halo_particle_data(
@@ -89,7 +89,7 @@ def _load_reordered_test_particle_data(snap_path: Path, seed: int = 42) -> dict:
                     particles[parttype][field] = dataset[:][order]
 
     return {
-        "data_dir": "test_data",
+        "test_data_path": "test_data",
         "snapnum": "test",
         "target": 0,
         "header": header,
