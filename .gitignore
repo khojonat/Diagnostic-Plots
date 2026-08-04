@@ -1,1 +1,7 @@
 Plots/
+scripts/__pycache__/*
+.ipynb_checkpoints/
+scripts/.ipynb_checkpoints/*
+sim_data/*
+logs/
+scripts/.ipynb_checkpoints/
