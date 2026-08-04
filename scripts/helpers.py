@@ -396,6 +396,18 @@ def identify_target_halo(run_num, snapnum):
     return target, min_mass, max_mass
 
 
+def target_halo_contamination(run_num: int, snapnum: int, target: int) -> float:
+    """Return the PartType2-to-total mass ratio for one halo."""
+    mass_by_type = np.asarray(loadHalos(run_num, snapnum, "GroupMassType")[target], dtype=float)
+    total_mass = np.sum(mass_by_type)
+    if not np.isfinite(total_mass) or total_mass <= 0 or mass_by_type.size <= 2:
+        raise ValueError("Target halo has no valid total mass for contamination calculation.")
+    contamination = mass_by_type[2] / total_mass
+    if not np.isfinite(contamination):
+        raise ValueError("Target halo has no valid PartType2 contamination value.")
+    return float(contamination)
+
+
 def split_paired_array(arr, first_is_x: bool = True):
     """
     Generic helper to unpack an interleaved 1D array of the form

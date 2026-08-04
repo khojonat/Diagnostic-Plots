@@ -25,6 +25,7 @@ from scripts.helpers import (
     latest_snapshot_num,
     plot_dir,
     sim_data_dir,
+    target_halo_contamination,
 )
 
 
@@ -86,6 +87,20 @@ def _save_dashboard(fig, output_dir: str, run_num: int | str, filename_suffix: s
     fig.savefig(outname, bbox_inches="tight", dpi=150)
     plt.close(fig)
     return outname
+
+
+def _plot_contamination(ax, contamination: float) -> None:
+    """Use the final diagnostic tile for the target halo's contamination."""
+    ax.set_axis_off()
+    ax.text(
+        0.5,
+        0.55,
+        "Target halo contamination\n"
+        r"$M_{\rm PartType2} / M_{\rm total}$" + f"\n{contamination:.3f}",
+        ha="center",
+        va="center",
+        fontsize=18,
+    )
 
 
 def run_all_diagnostics(run_num: int, snapnum: int | None = None, particle_data: dict | None = None,
@@ -150,6 +165,14 @@ def run_all_diagnostics(run_num: int, snapnum: int | None = None, particle_data:
         panels.append(partial(plot_kennicutt_schmidt, run_num=run_num, snapnum=snapnum,
                               target=target, output_dir=output_dir, particle_data=particle_data,
                               filename_suffix=filename_suffix))
+
+    try:
+        contamination = target_halo_contamination(run_num, snapnum, target)
+        print(f"Target halo contamination: {contamination:.3f}")
+        panels.append(partial(_plot_contamination, contamination=contamination))
+    except ValueError as exc:
+        print(f"Target halo contamination unavailable: {exc}")
+        panels.append(lambda ax: ax.set_axis_off())
 
     sobol_dir = _sim_params.get("sobol_path", "").strip()
     if not sobol_dir or sobol_dir == "0":
