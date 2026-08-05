@@ -467,16 +467,17 @@ def compute_rotation_curve_and_save(
         def component_arrays(parttype):
             fields = particle_data["particles"].get(parttype, {})
             if not fields:
-                return np.array([]), np.empty((0, 3))
-            return (
-                np.array(fields["Masses"] * UnitMass.to(u.M_sun)),
-                np.array(fields["Coordinates"] * UnitLength.to(u.kpc)),
-            )
+                return np.array([]), np.empty((0, 3)), np.empty((0, 3))
+            n = len(fields.get("Masses", []))
+            masses = np.array(fields["Masses"] * UnitMass.to(u.M_sun))
+            coords = np.array(fields["Coordinates"] * UnitLength.to(u.kpc))
+            velocities = np.array(fields["Velocities"]) if "Velocities" in fields else np.zeros((n, 3))
+            return masses, coords, velocities
 
-        gas_mass, gas_pos = component_arrays(0)
-        dm_mass, dm_pos = component_arrays(1)
-        dm2_mass, dm2_pos = component_arrays(2)
-        star_mass, star_pos = component_arrays(4)
+        gas_mass, gas_pos, gas_vel = component_arrays(0)
+        dm_mass, dm_pos, dm_vel = component_arrays(1)
+        dm2_mass, dm2_pos, dm2_vel = component_arrays(2)
+        star_mass, star_pos, star_vel = component_arrays(4)
 
     else:
         # Identify target halo
@@ -491,6 +492,7 @@ def compute_rotation_curve_and_save(
             # Load all particles
             gas_mass_all = np.array(f["PartType0"]["Masses"][:] * UnitMass.to(u.M_sun))
             gas_pos_all = np.array(f["PartType0"]["Coordinates"][:] * UnitLength.to(u.kpc))
+            gas_vel_all = np.array(f["PartType0"]["Velocities"][:]) if "Velocities" in f["PartType0"] else np.empty((gas_mass_all.shape[0], 3))
             dm_mass_all = np.array(f["PartType1"]["Masses"][:] * UnitMass.to(u.M_sun))
             dm_pos_all = np.array(f["PartType1"]["Coordinates"][:] * UnitLength.to(u.kpc))
             dm2_mass_all = np.array(f["PartType2"]["Masses"][:] * UnitMass.to(u.M_sun))
@@ -502,6 +504,7 @@ def compute_rotation_curve_and_save(
         start_gas, end_gas = halo_particle_bounds(halo_length, target, 0)
         gas_mass = gas_mass_all[start_gas:end_gas]
         gas_pos = gas_pos_all[start_gas:end_gas]
+        gas_vel = gas_vel_all[start_gas:end_gas]
 
         start_dm, end_dm = halo_particle_bounds(halo_length, target, 1)
         dm_mass = dm_mass_all[start_dm:end_dm]
@@ -533,6 +536,62 @@ def compute_rotation_curve_and_save(
     dm_rad, dm_mass = center_and_box_wrap(dm_pos, dm_mass, center, boxsize_kpc)
     dm2_rad, dm2_mass = center_and_box_wrap(dm2_pos, dm2_mass, center, boxsize_kpc)
     star_rad, star_mass = center_and_box_wrap(star_pos, star_mass, center, boxsize_kpc)
+
+    def center_and_box_wrap_positions(pos, center_vec, boxsize_val):
+        pos = np.array(pos, copy=True)
+        for ijk in range(3):
+            pos[:, ijk] -= center_vec[ijk]
+            pos[pos[:, ijk] > boxsize_val / 2.0, ijk] -= boxsize_val
+            pos[pos[:, ijk] < -boxsize_val / 2.0, ijk] += boxsize_val
+        return pos
+
+    def compute_mass_weighted_disk_rotation(pos_centered, vel_centered, mass):
+        if pos_centered.size == 0 or vel_centered.size == 0 or mass.size == 0:
+            return np.nan
+        if pos_centered.shape[0] != vel_centered.shape[0] or mass.shape[0] != pos_centered.shape[0]:
+            return np.nan
+
+        mass = np.asarray(mass, dtype=float)
+        total_mass = np.sum(mass)
+        if total_mass <= 0 or not np.isfinite(total_mass):
+            return np.nan
+
+        vel_centered = np.asarray(vel_centered, dtype=float)
+        try:
+            v_mean = np.average(vel_centered, axis=0, weights=mass)
+        except Exception:
+            v_mean = np.mean(vel_centered, axis=0)
+        vel_centered = vel_centered - v_mean
+
+        L = np.sum(np.cross(pos_centered, vel_centered) * mass[:, None], axis=0)
+        Lnorm = np.linalg.norm(L)
+        if not np.isfinite(Lnorm) or Lnorm == 0.0:
+            return np.nan
+
+        Lhat = L / Lnorm
+        r_proj = pos_centered - np.outer(np.dot(pos_centered, Lhat), Lhat)
+        r_proj_norm = np.linalg.norm(r_proj, axis=1)
+        good = r_proj_norm > 0
+        if not np.any(good):
+            return np.nan
+
+        e_phi = np.zeros_like(pos_centered)
+        e_phi[good] = np.cross(Lhat, r_proj[good])
+        e_phi_norm = np.linalg.norm(e_phi, axis=1)
+        good_phi = e_phi_norm > 0
+        if not np.any(good_phi):
+            return np.nan
+        e_phi[good_phi] /= e_phi_norm[good_phi][:, None]
+
+        v_phi = np.sum(vel_centered * e_phi, axis=1)
+        weighted_mass = mass[good_phi]
+        if np.sum(weighted_mass) <= 0:
+            return np.nan
+        vrot = np.sum(weighted_mass * v_phi[good_phi]) / np.sum(weighted_mass)
+        return float(np.abs(vrot))
+
+    gas_pos_centered = center_and_box_wrap_positions(gas_pos, center, boxsize_kpc)
+    vrot_gas = compute_mass_weighted_disk_rotation(gas_pos_centered, gas_vel, gas_mass)
 
     dr = 0.05
     rmax = 50.0
@@ -589,6 +648,7 @@ def compute_rotation_curve_and_save(
         f_out.create_dataset("vrot_dm_only", data=vrot_dm_only)
         f_out.create_dataset("vrot_gas_only", data=vrot_gas_only)
         f_out.create_dataset("vrot_stars_only", data=vrot_stars_only)
+        f_out.create_dataset("vrot_gas", data=vrot_gas)
 
     return outpath
 

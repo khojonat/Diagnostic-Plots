@@ -87,12 +87,16 @@ def plot_tully_fisher(
     """
     with h5py.File(rot_curve_file, "r") as f:
         cum_mass_stars_only = f["cum_mass_stars_only"][:]
-        vrot = f["vrot"][:]
+        if "vrot_gas" in f:
+            vrot_gas = float(f["vrot_gas"][()])
+        else:
+            vrot = f["vrot"][:]
+            finite_vrot = vrot[np.isfinite(vrot)]
+            vrot_gas = float(np.median(finite_vrot)) if finite_vrot.size else np.nan
 
     # Convert to stellar mass in Msun and characteristic rotation velocity
     M_stars_total = cum_mass_stars_only[-1] if cum_mass_stars_only.size else np.nan
-    finite_vrot = vrot[np.isfinite(vrot)]
-    V_rot_med = float(np.median(finite_vrot)) if finite_vrot.size else np.nan
+    V_rot_med = vrot_gas
 
     # Unpack literature relations
     SAMI_x, SAMI_y = split_paired_array(SAMI, first_is_x=True)
